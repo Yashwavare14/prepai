@@ -9,6 +9,58 @@ export default function AdminQuestionsPage() {
   const [filters, setFilters] = useState({ exam: '', topic: '' });
   const [exams, setExams] = useState([]);
   const [topics, setTopics] = useState([]);
+  const [generateForm, setGenerateForm] = useState({ exam: '', topic: '', difficulty: 'medium', count: 10 });
+  const [generateLoading, setGenerateLoading] = useState(false);
+  const [generateError, setGenerateError] = useState(null);
+  const [generateSuccess, setGenerateSuccess] = useState(null);
+
+  const fetchQuestions = async (filterValues = filters) => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (filterValues.exam) params.append('exam', filterValues.exam);
+      if (filterValues.topic) params.append('topic', filterValues.topic);
+
+      const res = await fetch(`/api/admin/questions?${params}`);
+      const data = await res.json();
+      setQuestions(Array.isArray(data) ? data : []);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+      setQuestions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateQuestions = async (e) => {
+    e.preventDefault();
+    setGenerateError(null);
+    setGenerateSuccess(null);
+
+    if (!generateForm.exam || !generateForm.topic) {
+      setGenerateError('Exam and topic are required to generate questions.');
+      return;
+    }
+
+    try {
+      setGenerateLoading(true);
+      const res = await fetch('/api/admin/generate-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(generateForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate questions.');
+      setGenerateSuccess(`Generated ${data.generatedCount} questions and saved them as pending review.`);
+      setGenerateForm({ ...generateForm, count: 10 });
+      fetchQuestions();
+    } catch (err) {
+      setGenerateError(err.message);
+    } finally {
+      setGenerateLoading(false);
+    }
+  };
 
   // Fetch exams on mount
   useEffect(() => {
@@ -99,7 +151,54 @@ export default function AdminQuestionsPage() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Manage Questions</h1>
-
+      {/* Generate Questions */}
+      <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+        <h2 className="text-xl text-gray-800 font-semibold mb-4">Generate Questions</h2>
+        <form onSubmit={handleGenerateQuestions} className="grid gap-4 md:grid-cols-4">
+          <input
+            type="text"
+            placeholder="Exam (e.g., SSC CGL)"
+            value={generateForm.exam}
+            onChange={(e) => setGenerateForm({ ...generateForm, exam: e.target.value })}
+            className="w-full px-3 py-2 border rounded bg-gray-50 text-gray-700"
+          />
+          <input
+            type="text"
+            placeholder="Topic (e.g., Quants)"
+            value={generateForm.topic}
+            onChange={(e) => setGenerateForm({ ...generateForm, topic: e.target.value })}
+            className="w-full px-3 py-2 border rounded bg-gray-50 text-gray-700"
+          />
+          <select
+            value={generateForm.difficulty}
+            onChange={(e) => setGenerateForm({ ...generateForm, difficulty: e.target.value })}
+            className="w-full px-3 py-2 border rounded bg-gray-50 text-gray-700"
+          >
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min="5"
+              max="50"
+              value={generateForm.count}
+              onChange={(e) => setGenerateForm({ ...generateForm, count: Number(e.target.value) })}
+              className="w-full px-3 py-2 border rounded bg-gray-50 text-gray-700"
+            />
+            <button
+              type="submit"
+              disabled={generateLoading}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
+            >
+              {generateLoading ? 'Generating...' : 'Generate'}
+            </button>
+          </div>
+        </form>
+        {generateError && <p className="mt-3 text-sm text-red-600">{generateError}</p>}
+        {generateSuccess && <p className="mt-3 text-sm text-green-600">{generateSuccess}</p>}
+      </div>
       {/* Filters */}
       <div className="mb-6 p-4 bg-gray-100 rounded-lg">
         <div className="grid grid-cols-2 gap-4">
