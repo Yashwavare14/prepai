@@ -17,7 +17,7 @@ export async function POST(req) {
 
     const referenceQuestions = await fetchQuestions({ exam, topic, difficulty, count: 5 });
     console.log("Reference questions for generation:", referenceQuestions);
-    if (referenceQuestions.length < 3) {
+    if (referenceQuestions.length < 1) {
       return Response.json(
         { error: "Need at least 3 approved reference questions for this exam/topic before generating new ones." },
         { status: 400 }

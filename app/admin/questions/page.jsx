@@ -9,6 +9,10 @@ export default function AdminQuestionsPage() {
   const [filters, setFilters] = useState({ exam: '', topic: '' });
   const [exams, setExams] = useState([]);
   const [topics, setTopics] = useState([]);
+  const staticExamOptions = ['SSC CGL', 'RRB', 'IBPS', 'UPSC', 'Bank PO'];
+  const staticTopicOptions = ['Quants', 'GK', 'Reasoning', 'English', 'General Science'];
+  const examOptions = exams.length ? exams : staticExamOptions;
+  const topicOptions = topics.length ? topics : staticTopicOptions;
   const [generateForm, setGenerateForm] = useState({ exam: '', topic: '', difficulty: 'medium', count: 10 });
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState(null);
@@ -155,20 +159,33 @@ export default function AdminQuestionsPage() {
       <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
         <h2 className="text-xl text-gray-800 font-semibold mb-4">Generate Questions</h2>
         <form onSubmit={handleGenerateQuestions} className="grid gap-4 md:grid-cols-4">
-          <input
-            type="text"
-            placeholder="Exam (e.g., SSC CGL)"
+          <select
             value={generateForm.exam}
-            onChange={(e) => setGenerateForm({ ...generateForm, exam: e.target.value })}
+            onChange={(e) => setGenerateForm({ ...generateForm, exam: e.target.value, topic: '' })}
             className="w-full px-3 py-2 border rounded bg-gray-50 text-gray-700"
-          />
-          <input
-            type="text"
-            placeholder="Topic (e.g., Quants)"
+            required
+          >
+            <option value="">Select Exam</option>
+            <option value="SSC CGL">SSC CGL</option>
+            <option value="RRB">RRB</option>
+            <option value="IBPS">IBPS</option>
+            <option value="UPSC">UPSC</option>
+            <option value="Bank PO">Bank PO</option>
+          </select>
+          <select
             value={generateForm.topic}
             onChange={(e) => setGenerateForm({ ...generateForm, topic: e.target.value })}
             className="w-full px-3 py-2 border rounded bg-gray-50 text-gray-700"
-          />
+            required
+            disabled={!generateForm.exam}
+          >
+            <option value="">Select Topic</option>
+            <option value="Quants">Quants</option>
+            <option value="GK">GK</option>
+            <option value="Reasoning">Reasoning</option>
+            <option value="English">English</option>
+            <option value="General Science">General Science</option>
+          </select>
           <select
             value={generateForm.difficulty}
             onChange={(e) => setGenerateForm({ ...generateForm, difficulty: e.target.value })}
@@ -208,7 +225,7 @@ export default function AdminQuestionsPage() {
             className="p-2 border rounded text-gray-500"
           >
             <option value="">Select Exam</option>
-            {exams.map(exam => (
+            {examOptions.map((exam) => (
               <option key={exam} value={exam}>{exam}</option>
             ))}
           </select>
@@ -219,7 +236,7 @@ export default function AdminQuestionsPage() {
             disabled={!filters.exam}
           >
             <option value="">Select Topic</option>
-            {topics.map(topic => (
+            {topicOptions.map((topic) => (
               <option key={topic} value={topic}>{topic}</option>
             ))}
           </select>
@@ -244,8 +261,15 @@ export default function AdminQuestionsPage() {
               </div>
               <p className="text-sm mb-2">
                 <strong>Answer:</strong> {q.correctAnswer} | 
-                <strong className="ml-2">Status:</strong> {q.status}
+                <strong className="ml-2">Status:</strong> {q.status} |
+                <strong className="ml-2">Topic:</strong> {q.topic}
               </p>
+              {q.explanation && (
+                <div className="mb-3 p-2 bg-gray-900 rounded text-sm text-gray-50">
+                  <strong>Explanation:</strong>
+                  <p className="mt-1 text-gray-50">{q.explanation}</p>
+                </div>
+              )}
               <div className="flex gap-2">
                 {q.status === 'pending_review' && (
                   <button
