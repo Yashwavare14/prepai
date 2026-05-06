@@ -1,41 +1,145 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+const staticExamOptions = ['SSC CGL', 'RRB', 'IBPS', 'UPSC', 'Bank PO'];
+const staticTopicOptions = ['Quants', 'GK', 'Reasoning', 'English', 'General Science'];
+
+const formatError = (error) => {
+  if (error instanceof Error) return error.message;
+  return String(error ?? 'Unknown error');
+};
+
+const fetchQuestions = async ({ queryKey }) => {
+  const [, exam, topic] = queryKey;
+  const params = new URLSearchParams();
+  if (exam) params.append('exam', exam);
+  if (topic) params.append('topic', topic);
+
+  const res = await fetch(`/api/admin/questions?${params}`);
+  if (!res.ok) {
+    throw new Error('Failed to load questions');
+  }
+  return res.json();
+};
+
+const fetchExams = async () => {
+  const res = await fetch('/api/filters/exams');
+  if (!res.ok) {
+    throw new Error('Failed to load exams');
+  }
+  return res.json();
+};
+
+const fetchTopics = async ({ queryKey }) => {
+  const [, exam] = queryKey;
+  const res = await fetch(`/api/filters/topics?exam=${encodeURIComponent(exam)}`);
+  if (!res.ok) {
+    throw new Error('Failed to load topics');
+  }
+  return res.json();
+};
+
+const generateQuestions = async (payload) => {
+  const res = await fetch('/api/admin/generate-questions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to generate questions');
+  }
+
+  return data;
+};
+
+const approveQuestion = async (id) => {
+  const res = await fetch(`/api/admin/questions/${id}/approve`, {
+    method: 'PATCH',
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to approve question');
+  }
+
+  return res.json();
+};
+
+const deleteQuestion = async (id) => {
+  const res = await fetch(`/api/admin/questions/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to delete question');
+  }
+
+  return res.json();
+};
 
 export default function AdminQuestionsPage() {
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({ exam: '', topic: '' });
-  const [exams, setExams] = useState([]);
-  const [topics, setTopics] = useState([]);
-  const staticExamOptions = ['SSC CGL', 'RRB', 'IBPS', 'UPSC', 'Bank PO'];
-  const staticTopicOptions = ['Quants', 'GK', 'Reasoning', 'English', 'General Science'];
-  const examOptions = exams.length ? exams : staticExamOptions;
-  const topicOptions = topics.length ? topics : staticTopicOptions;
   const [generateForm, setGenerateForm] = useState({ exam: '', topic: '', difficulty: 'medium', count: 10 });
-  const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState(null);
   const [generateSuccess, setGenerateSuccess] = useState(null);
 
-  const fetchQuestions = async (filterValues = filters) => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (filterValues.exam) params.append('exam', filterValues.exam);
-      if (filterValues.topic) params.append('topic', filterValues.topic);
+  const queryClient = useQueryClient();
 
-      const res = await fetch(`/api/admin/questions?${params}`);
-      const data = await res.json();
-      setQuestions(Array.isArray(data) ? data : []);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-      setQuestions([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const examsQuery = useQuery({
+    queryKey: ['adminExams'],
+    queryFn: fetchExams,
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
+
+  const topicsQuery = useQuery({
+    queryKey: ['adminTopics', filters.exam],
+    queryFn: fetchTopics,
+    enabled: Boolean(filters.exam),
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
+
+  const questionsQuery = useQuery({
+    queryKey: ['adminQuestions', filters.exam, filters.topic],
+    queryFn: fetchQuestions,
+    keepPreviousData: true,
+    retry: 1,
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: generateQuestions,
+    onSuccess: (data) => {
+      setGenerateSuccess(`Generated ${data.generatedCount} questions and saved them as pending review.`);
+      setGenerateError(null);
+      setGenerateForm({ ...generateForm, count: 10 });
+      queryClient.invalidateQueries({ queryKey: ['adminQuestions'] });
+    },
+    onError: (error) => {
+      setGenerateError(formatError(error));
+      setGenerateSuccess(null);
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: approveQuestion,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adminQuestions'] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteQuestion,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adminQuestions'] }),
+  });
+
+  const examOptions = examsQuery.data?.length ? examsQuery.data : staticExamOptions;
+  const topicOptions = topicsQuery.data?.length ? topicsQuery.data : staticTopicOptions;
+  const questions = questionsQuery.data ?? [];
+  const isQuestionsLoading = questionsQuery.isLoading;
+  const questionsError = questionsQuery.isError ? formatError(questionsQuery.error) : null;
+  const isGenerating = generateMutation.isLoading;
 
   const handleGenerateQuestions = async (e) => {
     e.preventDefault();
@@ -47,109 +151,14 @@ export default function AdminQuestionsPage() {
       return;
     }
 
-    try {
-      setGenerateLoading(true);
-      const res = await fetch('/api/admin/generate-questions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(generateForm),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to generate questions.');
-      setGenerateSuccess(`Generated ${data.generatedCount} questions and saved them as pending review.`);
-      setGenerateForm({ ...generateForm, count: 10 });
-      fetchQuestions();
-    } catch (err) {
-      setGenerateError(err.message);
-    } finally {
-      setGenerateLoading(false);
-    }
+    generateMutation.mutate(generateForm);
   };
 
-  // Fetch exams on mount
-  useEffect(() => {
-    const fetchExams = async () => {
-      try {
-        const res = await fetch('/api/filters/exams');
-        const data = await res.json();
-        setExams(data);
-      } catch (err) {
-        console.error('Failed to fetch exams:', err);
-      }
-    };
-    fetchExams();
-  }, []);
+  const handleApprove = (id) => approveMutation.mutate(id);
 
-  // Fetch topics when exam changes
-  useEffect(() => {
-    if (!filters.exam) {
-      setTopics([]);
-      return;
-    }
-    const fetchTopics = async () => {
-      try {
-        const res = await fetch(`/api/filters/topics?exam=${encodeURIComponent(filters.exam)}`);
-        const data = await res.json();
-        setTopics(data);
-      } catch (err) {
-        console.error('Failed to fetch topics:', err);
-      }
-    };
-    fetchTopics();
-  }, [filters.exam]);
-
-  // Fetch questions
-  useEffect(() => {
-    const fetchQuestions = async () => {
-      try {
-        setLoading(true);
-        const params = new URLSearchParams();
-        if (filters.exam) params.append('exam', filters.exam);
-        if (filters.topic) params.append('topic', filters.topic);
-        
-        const res = await fetch(`/api/admin/questions?${params}`);
-        const data = await res.json();
-        
-        // Ensure data is always an array
-        setQuestions(Array.isArray(data) ? data : []);
-        setError(null);
-      } catch (err) {
-        setError(err.message);
-        setQuestions([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchQuestions();
-  }, [filters]);
-
-  const handleApprove = async (id) => {
-    try {
-      const res = await fetch(`/api/admin/questions/${id}/approve`, {
-        method: 'PATCH',
-      });
-      if (res.ok) {
-        setQuestions(questions.map(q => 
-          q.id === id ? { ...q, status: 'approved' } : q
-        ));
-      }
-    } catch (err) {
-      console.error('Failed to approve:', err);
-    }
-  };
-
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
     if (!confirm('Are you sure?')) return;
-    try {
-      const res = await fetch(`/api/admin/questions/${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        setQuestions(questions.filter(q => q.id !== id));
-      }
-    } catch (err) {
-      console.error('Failed to delete:', err);
-    }
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -206,10 +215,10 @@ export default function AdminQuestionsPage() {
             />
             <button
               type="submit"
-              disabled={generateLoading}
+              disabled={isGenerating}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
             >
-              {generateLoading ? 'Generating...' : 'Generate'}
+              {isGenerating ? 'Generating...' : 'Generate'}
             </button>
           </div>
         </form>
@@ -244,10 +253,10 @@ export default function AdminQuestionsPage() {
       </div>
 
       {/* Questions List */}
-      {loading ? (
+      {isQuestionsLoading ? (
         <p>Loading...</p>
-      ) : error ? (
-        <p className="text-red-600">Error: {error}</p>
+      ) : questionsError ? (
+        <p className="text-red-600">Error: {questionsError}</p>
       ) : (
         <div className="space-y-4">
           {questions.map(q => (

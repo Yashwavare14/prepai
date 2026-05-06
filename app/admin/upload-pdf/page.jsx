@@ -1,14 +1,61 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchExams, fetchTopics, uploadPdf } from '@/lib/queries/admin';
+
+const staticExamOptions = ['SSC CGL', 'RRB', 'IBPS', 'UPSC', 'Bank PO'];
+const staticTopicOptions = ['Quants', 'GK', 'Reasoning', 'English', 'General Science'];
+
+const formatError = (error) => {
+  if (error instanceof Error) return error.message;
+  return String(error ?? 'Unknown error');
+};
 
 export default function UploadPdfPage() {
   const [file, setFile] = useState(null);
   const [exam, setExam] = useState('');
   const [topic, setTopic] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  const queryClient = useQueryClient();
+
+  const examsQuery = useQuery({
+    queryKey: ['adminExams'],
+    queryFn: fetchExams,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1,
+  });
+
+  const topicsQuery = useQuery({
+    queryKey: ['adminTopics', exam],
+    queryFn: fetchTopics,
+    enabled: Boolean(exam),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1,
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: uploadPdf,
+    onSuccess: (data) => {
+      setSuccess(`✅ Successfully extracted ${data.questionsExtracted} questions!`);
+      setError(null);
+      setFile(null);
+      setExam('');
+      setTopic('');
+      // Invalidate questions list to show new questions
+      queryClient.invalidateQueries({ queryKey: ['adminQuestions'] });
+    },
+    onError: (error) => {
+      setError(formatError(error));
+      setSuccess(null);
+    },
+  });
+
+  const examOptions = examsQuery.data?.length ? examsQuery.data : staticExamOptions;
+  const topicOptions = topicsQuery.data?.length ? topicsQuery.data : staticTopicOptions;
+  const isUploading = uploadMutation.isLoading;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,33 +64,15 @@ export default function UploadPdfPage() {
       return;
     }
 
-    try {
-      setLoading(true);
-      setError(null);
-      setSuccess(null);
+    setError(null);
+    setSuccess(null);
 
-      const formData = new FormData();
-      formData.append('pdf', file);
-      formData.append('exam', exam);
-      formData.append('topic', topic);
+    const formData = new FormData();
+    formData.append('pdf', file);
+    formData.append('exam', exam);
+    formData.append('topic', topic);
 
-      const res = await fetch('/api/admin/upload-pdf', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      setSuccess(`✅ Successfully extracted ${data.questionsExtracted} questions!`);
-      setFile(null);
-      setExam('');
-      setTopic('');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    uploadMutation.mutate(formData);
   };
 
   return (
@@ -53,26 +82,40 @@ export default function UploadPdfPage() {
       <form onSubmit={handleSubmit} className="p-6 bg-white rounded-lg shadow-lg border border-gray-200 space-y-4">
         <div>
           <label className="block text-sm font-semibold mb-2 text-gray-700">Exam</label>
-          <input
-            type="text"
-            placeholder="e.g., SSC CGL"
+          <select
             value={exam}
-            onChange={(e) => setExam(e.target.value)}
+            onChange={(e) => {
+              setExam(e.target.value);
+              setTopic(''); // Reset topic when exam changes
+            }}
             required
-            className="w-full px-4 py-2 bg-white border-2 border-gray-300 rounded text-gray-900 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          />
+            className="w-full px-4 py-2 bg-white border-2 border-gray-300 rounded text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="">Select Exam</option>
+            {examOptions.map((examOption) => (
+              <option key={examOption} value={examOption}>
+                {examOption}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
           <label className="block text-sm font-semibold mb-2 text-gray-700">Topic</label>
-          <input
-            type="text"
-            placeholder="e.g., Quants"
+          <select
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             required
-            className="w-full px-4 py-2 bg-white border-2 border-gray-300 rounded text-gray-900 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          />
+            disabled={!exam}
+            className="w-full px-4 py-2 bg-white border-2 border-gray-300 rounded text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          >
+            <option value="">Select Topic</option>
+            {topicOptions.map((topicOption) => (
+              <option key={topicOption} value={topicOption}>
+                {topicOption}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -92,10 +135,10 @@ export default function UploadPdfPage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={isUploading}
           className="w-full px-4 py-3 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
         >
-          {loading ? 'Processing...' : 'Upload & Parse'}
+          {isUploading ? 'Processing...' : 'Upload & Parse'}
         </button>
       </form>
 
