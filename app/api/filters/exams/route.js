@@ -1,6 +1,6 @@
 import { fetchExams } from "@/lib/db/queries";
 
-export async function GET(req) {
+export async function GET() {
   try {
     const exams = await fetchExams();
     return Response.json(exams);

@@ -1,7 +1,11 @@
 import { fetchAllQuestions, insertQuestion } from "@/lib/db/queries";
 import { insertQuestionSchema } from "@/lib/validation/schemas";
+import { requireAuth } from "@/lib/security/auth";
 
 export async function GET(req) {
+  const authError = await requireAuth();
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(req.url);
     const exam = searchParams.get("exam") || undefined;
@@ -20,7 +24,11 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const authError = await requireAuth();
+  if (authError) return authError;
+
   try {
+
     const body = await req.json();
     const result = insertQuestionSchema.safeParse(body);
     if (!result.success) {
