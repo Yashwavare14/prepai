@@ -1,52 +1,116 @@
-import { extractText } from "unpdf";
-import { parseQuestionsFromText } from "@/lib/gemini/parsePdf";
+import { extractBlocks } from "@/lib/external/pdfParser";
+import { transformQuestions } from "@/lib/external/transformQuestions";
+import { pdfParsedQuestionSchema } from "@/lib/validation/schemas";
 import { insertQuestionsFromPdf, logPdfSource, markPdfProcessed } from "@/lib/db/queries";
 
-const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_PDF_SIZE = 25 * 1024 * 1024; // 25MB
 
 export async function POST(req) {
   try {
     const formData = await req.formData();
-    const file  = formData.get("pdf");
-    const exam  = formData.get("exam");
+    const file = formData.get("pdf") || formData.get("file") || formData.get("pdfFile");
+    const exam = formData.get("exam");
     const topic = formData.get("topic");
+    const section = formData.get("section") || undefined;
+    const provider = formData.get("provider") || undefined;
+    const model = formData.get("model") || undefined;
 
-    // 2. Validate file
-    if (!file || file.type !== "application/pdf") {
+    // 1. Validate file
+    if (!file || typeof file === "string") {
       return Response.json({ error: "A valid PDF file is required" }, { status: 400 });
     }
     if (file.size > MAX_PDF_SIZE) {
-      return Response.json({ error: "File too large. Max size is 10MB." }, { status: 400 });
+      return Response.json({ error: "File too large. Max size is 25MB." }, { status: 400 });
     }
 
-    // 3. Validate form fields
+    // 2. Validate form fields
     if (!exam || !topic) {
       return Response.json({ error: "exam and topic are required" }, { status: 400 });
     }
 
-    // 4. Extract text from PDF
+    // 3. Read PDF buffer
     const buffer = Buffer.from(await file.arrayBuffer());
-    const { text:pages } = await extractText(new Uint8Array(buffer));
-    const text = Array.isArray(pages) ? pages.join("\n") : pages;
-    console.log(text)
 
-    if (!text || text.trim().length === 0) {
-      return Response.json({ error: "Could not extract text from PDF. Is it a scanned image?" }, { status: 400 });
+    // 4. Extract question blocks via external service
+    const rawData = await extractBlocks(buffer, file.name, {
+      section: section && section !== "all" ? section : undefined,
+      provider,
+      model,
+    });
+
+    // 5. Transform external format to PrepAI format
+    const transformed = transformQuestions(rawData);
+
+    if (!transformed || transformed.length === 0) {
+      return Response.json(
+        { error: "No questions found or extracted from the selected section of this PDF." },
+        { status: 422 }
+      );
     }
 
-    // 5. Log the upload
-    const sourceId = await logPdfSource({ filename: file.name, exam, topic });
+    // 6. Validate each question against schema
+    const validQuestions = [];
+    for (const q of transformed) {
+      const parsed = pdfParsedQuestionSchema.safeParse(q);
+      if (parsed.success) {
+        validQuestions.push(parsed.data);
+      } else {
+        console.warn("Skipping invalid question:", parsed.error.flatten(), q);
+      }
+    }
 
-    // 6. Parse questions via Gemini (Zod validation inside parseQuestionsFromText)
-    const questions = await parseQuestionsFromText(text);
+    if (validQuestions.length === 0) {
+      return Response.json(
+        { error: "Extracted questions failed schema validation." },
+        { status: 422 }
+      );
+    }
 
-    // 7. Save to DB as pending_review
-    await insertQuestionsFromPdf(questions, { topic, exam, filename: file.name });
+    const autoSave = formData.get("autoSave") === "true";
 
-    // 8. Mark PDF as processed
-    await markPdfProcessed(sourceId);
+    // Format questions for preview
+    const formattedQuestions = validQuestions.map((q, idx) => ({
+      tempId: `extract-${Date.now()}-${idx}`,
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correct_answer || q.correctAnswer || "A",
+      explanation: q.explanation ?? null,
+      topic,
+      exam,
+      difficulty: "medium",
+      status: "pending_approval",
+      source: file.name,
+    }));
 
-    return Response.json({ success: true, questionsExtracted: questions.length });
+    if (autoSave) {
+      const sourceId = await logPdfSource({ filename: file.name, exam, topic });
+      const inserted = await insertQuestionsFromPdf(formattedQuestions, {
+        topic,
+        exam,
+        filename: file.name,
+        status: "pending_review",
+      });
+      await markPdfProcessed(sourceId);
+
+      return Response.json({
+        success: true,
+        saved: true,
+        questionsExtracted: inserted.length,
+        totalParsed: transformed.length,
+        questions: inserted,
+      });
+    }
+
+    return Response.json({
+      success: true,
+      saved: false,
+      questionsExtracted: formattedQuestions.length,
+      totalParsed: transformed.length,
+      filename: file.name,
+      exam,
+      topic,
+      questions: formattedQuestions,
+    });
   } catch (err) {
     console.error("PDF upload error:", err);
     return Response.json(
