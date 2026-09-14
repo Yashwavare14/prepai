@@ -12,15 +12,22 @@ const formatError = (error) => {
 };
 
 const fetchQuestions = async ({ queryKey }) => {
-  const [, exam, topic] = queryKey;
+  const [, exam, topic, year] = queryKey;
   const params = new URLSearchParams();
   if (exam) params.append('exam', exam);
   if (topic) params.append('topic', topic);
+  if (year) params.append('year', year);
 
   const res = await fetch(`/api/admin/questions?${params}`);
   if (!res.ok) {
     throw new Error('Failed to load questions');
   }
+  return res.json();
+};
+
+const fetchYears = async () => {
+  const res = await fetch('/api/filters/years');
+  if (!res.ok) return [];
   return res.json();
 };
 
@@ -81,7 +88,7 @@ const deleteQuestion = async (id) => {
 };
 
 export default function AdminQuestionsPage() {
-  const [filters, setFilters] = useState({ exam: '', topic: '', status: 'all' });
+  const [filters, setFilters] = useState({ exam: '', topic: '', year: '', status: 'all' });
   const [generateForm, setGenerateForm] = useState({
     exam: '',
     topic: '',
@@ -110,6 +117,13 @@ export default function AdminQuestionsPage() {
     retry: 1,
   });
 
+  const yearsQuery = useQuery({
+    queryKey: ['adminYears'],
+    queryFn: fetchYears,
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
+
   const genTopicsQuery = useQuery({
     queryKey: ['adminGenTopics', generateForm.exam],
     queryFn: fetchTopics,
@@ -119,7 +133,7 @@ export default function AdminQuestionsPage() {
   });
 
   const questionsQuery = useQuery({
-    queryKey: ['adminQuestions', filters.exam, filters.topic],
+    queryKey: ['adminQuestions', filters.exam, filters.topic, filters.year],
     queryFn: fetchQuestions,
     keepPreviousData: true,
     retry: 1,
@@ -335,7 +349,7 @@ export default function AdminQuestionsPage() {
       <div className="p-5 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700">2. Filter Question Bank</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <div>
             <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Filter by Exam</label>
             <select
@@ -364,6 +378,22 @@ export default function AdminQuestionsPage() {
               {filterTopicOptions.map((topic) => (
                 <option key={topic} value={topic}>
                   {topic}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Filter by Year</label>
+            <select
+              value={filters.year}
+              onChange={(e) => setFilters({ ...filters, year: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-800 focus:outline-none focus:border-blue-500"
+            >
+              <option value="">All Years</option>
+              {(yearsQuery.data ?? []).map((y) => (
+                <option key={y} value={y}>
+                  {y}
                 </option>
               ))}
             </select>
@@ -439,13 +469,28 @@ export default function AdminQuestionsPage() {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-4 mb-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="px-2.5 py-0.5 bg-slate-100 text-slate-800 text-xs font-bold rounded">
                         #{idx + 1} (ID: {q.id})
                       </span>
                       <span className="text-xs text-gray-500 font-medium">
                         {q.exam || 'General'} • {q.topic}
                       </span>
+                      {q.year && (
+                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded border border-indigo-200">
+                          📅 {q.year}
+                        </span>
+                      )}
+                      {q.metadata?.shift && (
+                        <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs font-semibold rounded border border-purple-200">
+                          ⚡ {q.metadata.shift}
+                        </span>
+                      )}
+                      {q.metadata?.tier && (
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded border border-blue-200">
+                          🏆 {q.metadata.tier}
+                        </span>
+                      )}
                     </div>
 
                     <div>
@@ -460,6 +505,12 @@ export default function AdminQuestionsPage() {
                       )}
                     </div>
                   </div>
+
+                  {q.metadata?.paper_title && (
+                    <p className="text-xs text-slate-500 italic mb-2">
+                      Paper: {q.metadata.paper_title}
+                    </p>
+                  )}
 
                   <h3 className="font-semibold text-gray-900 mb-3 text-base leading-relaxed whitespace-pre-wrap">
                     {q.question}
@@ -493,6 +544,11 @@ export default function AdminQuestionsPage() {
                   <p className="text-sm mb-3 text-gray-600">
                     <strong>Answer:</strong> <span className="font-bold text-gray-900">{q.correctAnswer}</span> |{' '}
                     <strong>Topic:</strong> {q.topic} | <strong>Exam:</strong> {q.exam || 'N/A'}
+                    {q.year && (
+                      <>
+                        {' '}| <strong>Year:</strong> {q.year}
+                      </>
+                    )}
                     {q.difficulty && (
                       <>
                         {' '}| <strong>Difficulty:</strong> {q.difficulty}

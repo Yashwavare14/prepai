@@ -6,8 +6,9 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const exam = searchParams.get("exam") || undefined;
     const topic = searchParams.get("topic") || undefined;
+    const year = searchParams.get("year") || undefined;
 
-    const questions = await fetchAllQuestions({ exam, topic });
+    const questions = await fetchAllQuestions({ exam, topic, year });
     return Response.json(questions);
   } catch (err) {
     console.error("Fetch questions error:", err);

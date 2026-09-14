@@ -2,6 +2,7 @@ import { extractBlocks } from "@/lib/external/pdfParser";
 import { transformQuestions } from "@/lib/external/transformQuestions";
 import { pdfParsedQuestionSchema } from "@/lib/validation/schemas";
 import { insertQuestionsFromPdf, logPdfSource, markPdfProcessed } from "@/lib/db/queries";
+import { generateQuestionUid } from "@/lib/utils/uid";
 
 const MAX_PDF_SIZE = 25 * 1024 * 1024; // 25MB
 
@@ -69,18 +70,24 @@ export async function POST(req) {
     const autoSave = formData.get("autoSave") === "true";
 
     // Format questions for preview
-    const formattedQuestions = validQuestions.map((q, idx) => ({
-      tempId: `extract-${Date.now()}-${idx}`,
-      question: q.question,
-      options: q.options,
-      correctAnswer: q.correct_answer || q.correctAnswer || "A",
-      explanation: q.explanation ?? null,
-      topic,
-      exam,
-      difficulty: "medium",
-      status: "pending_approval",
-      source: file.name,
-    }));
+    const formattedQuestions = validQuestions.map((q) => {
+      const uid = generateQuestionUid(6);
+      return {
+        id: uid,
+        tempId: uid,
+        question: q.question,
+        options: q.options,
+        correctAnswer: q.correct_answer || q.correctAnswer || "A",
+        explanation: q.explanation ?? null,
+        year: q.year ?? null,
+        metadata: q.metadata ?? null,
+        topic,
+        exam,
+        difficulty: "medium",
+        status: "pending_approval",
+        source: file.name,
+      };
+    });
 
     if (autoSave) {
       const sourceId = await logPdfSource({ filename: file.name, exam, topic });

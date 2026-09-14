@@ -2,7 +2,7 @@ import { approveQuestion } from "@/lib/db/queries";
 import { z } from "zod";
 
 const paramsSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.string().min(1),
 });
 
 export async function PATCH(req, { params }) {

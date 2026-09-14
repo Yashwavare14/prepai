@@ -445,13 +445,28 @@ export default function UploadPdfPage() {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-4 mb-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="px-2.5 py-0.5 bg-slate-100 text-slate-800 text-xs font-bold rounded">
                         Q{idx + 1}
                       </span>
                       <span className="text-xs text-gray-500 font-medium">
                         {q.exam} • {q.topic}
                       </span>
+                      {q.year && (
+                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded border border-indigo-200">
+                          📅 {q.year}
+                        </span>
+                      )}
+                      {q.metadata?.shift && (
+                        <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs font-semibold rounded border border-purple-200">
+                          ⚡ {q.metadata.shift}
+                        </span>
+                      )}
+                      {q.metadata?.tier && (
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded border border-blue-200">
+                          🏆 {q.metadata.tier}
+                        </span>
+                      )}
                     </div>
 
                     <div>
@@ -466,6 +481,12 @@ export default function UploadPdfPage() {
                       )}
                     </div>
                   </div>
+
+                  {q.metadata?.paper_title && (
+                    <p className="text-xs text-slate-500 italic mb-2">
+                      Paper: {q.metadata.paper_title}
+                    </p>
+                  )}
 
                   <h3 className="font-semibold text-gray-900 mb-3 text-base leading-relaxed whitespace-pre-wrap">
                     {q.question}

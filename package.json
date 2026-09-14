@@ -9,8 +9,10 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "node lib/db/seed.js"
+    "db:seed": "node lib/db/seed.js",
+    "db:clear": "node lib/db/clear.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.2.7",
