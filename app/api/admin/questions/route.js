@@ -9,11 +9,13 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const exam = searchParams.get("exam") || undefined;
+    const paperSection = searchParams.get("paperSection") || searchParams.get("section") || undefined;
     const topic = searchParams.get("topic") || undefined;
     const year = searchParams.get("year") || undefined;
 
-    const questions = await fetchAllQuestions({ exam, topic, year });
+    const questions = await fetchAllQuestions({ exam, paperSection, topic, year });
     return Response.json(questions);
+
   } catch (err) {
     console.error("Fetch questions error:", err);
     return Response.json(

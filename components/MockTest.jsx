@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import MathRenderer from '@/components/common/MathRenderer';
 
 export default function MockTest({ test }) {
   const [answers, setAnswers] = useState({});
@@ -66,13 +67,14 @@ export default function MockTest({ test }) {
                   : 'bg-white border-gray-300'
               }`}
             >
-              <h3 className="font-semibold mb-3 text-gray-700">
-                Q{idx + 1}: {q.question}
-              </h3>
+              <div className="font-semibold mb-3 text-gray-800 text-base leading-relaxed flex items-start gap-2">
+                <span className="shrink-0 font-bold text-gray-600">Q{idx + 1}:</span>
+                <MathRenderer text={q.question} as="div" className="flex-1" />
+              </div>
 
-              <div className="space-y-2 mb-4 text-gray-600">
+              <div className="space-y-2 mb-4 text-gray-700">
                 {['A', 'B', 'C', 'D'].map(option => (
-                  <label key={option} className="flex items-center">
+                  <label key={option} className="flex items-start gap-2 p-2 rounded hover:bg-gray-100/60 cursor-pointer">
                     <input
                       type="radio"
                       name={`question-${q.id}`}
@@ -80,27 +82,31 @@ export default function MockTest({ test }) {
                       checked={answers[q.id] === option}
                       onChange={() => handleSelectAnswer(q.id, option)}
                       disabled={submitted}
-                      className="mr-2"
+                      className="mt-1"
                     />
-                    <span className={
-                      submitted && option === q.correct_answer
-                        ? 'text-green-700 font-semibold'
-                        : submitted && answers[q.id] === option && option !== q.correct_answer
-                        ? 'text-red-700'
-                        : ''
-                    }>
-                      {option}) {q.options[option]}
-                    </span>
+                    <div className="flex-1 flex items-start gap-1">
+                      <strong className="shrink-0">{option})</strong>
+                      <span className={
+                        submitted && option === q.correct_answer
+                          ? 'text-green-700 font-semibold'
+                          : submitted && answers[q.id] === option && option !== q.correct_answer
+                          ? 'text-red-700'
+                          : ''
+                      }>
+                        <MathRenderer text={q.options[option]} as="span" />
+                      </span>
+                    </div>
                     {submitted && option === q.correct_answer && (
-                      <span className="ml-2 text-green-600">✓</span>
+                      <span className="ml-2 text-green-600 font-bold shrink-0">✓</span>
                     )}
                   </label>
                 ))}
               </div>
 
               {submitted && (
-                <div className="p-3 bg-yellow-50 rounded text-sm">
-                  <strong>Explanation:</strong> {q.explanation}
+                <div className="p-3 bg-yellow-50/80 border border-yellow-200 rounded text-sm text-gray-800">
+                  <strong className="text-amber-900 block mb-1">Explanation:</strong>
+                  <MathRenderer text={q.explanation} as="div" className="text-gray-800" />
                 </div>
               )}
             </div>

@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchStudentProfile, saveStudentProfile } from '@/lib/queries/student';
 
 const POPULAR_EXAMS = [
   'SSC CGL',
@@ -31,73 +34,85 @@ const STREAMS_12TH = [
 const BOARDS = ['CBSE', 'ICSE / ISC', 'State Board', 'NIOS', 'Other'];
 
 export default function StudentOnboardingPage() {
-  const router = useRouter();
   const { user, isLoaded: isUserLoaded } = useUser();
 
+  const profileQuery = useQuery({
+    queryKey: ['studentProfile'],
+    queryFn: fetchStudentProfile,
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
+    enabled: Boolean(isUserLoaded),
+  });
+
+  if (!isUserLoaded || profileQuery.isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-sm font-medium text-slate-600">Loading student profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <StudentOnboardingForm
+      initialStudent={profileQuery.data?.student}
+      user={user}
+    />
+  );
+}
+
+function StudentOnboardingForm({ initialStudent, user }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
   const [currentStep, setCurrentStep] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  // Form State
-  const [formData, setFormData] = useState({
+  // Form State initialized directly from query/Clerk
+  const [formData, setFormData] = useState(() => ({
     // Step 1: Personal
-    name: '',
-    email: '',
-    phone: '',
+    name: initialStudent?.name || (user?.fullName || ''),
+    email: initialStudent?.email || (user?.primaryEmailAddress?.emailAddress || ''),
+    phone: initialStudent?.phone || '',
     // Step 2: Competitive Goals
-    targetExams: [],
-    targetYear: '2025',
-    preferredLanguage: 'en',
-    dailyGoalQuestions: 20,
+    targetExams: Array.isArray(initialStudent?.targetExams) ? initialStudent.targetExams : [],
+    targetYear: initialStudent?.targetYear || '2025',
+    preferredLanguage: initialStudent?.preferredLanguage || 'en',
+    dailyGoalQuestions: initialStudent?.dailyGoalQuestions || 20,
     // Step 3: Schooling (10th & 12th)
-    tenthPercentage: '',
-    tenthSchool: '',
-    tenthBoard: 'CBSE',
-    tenthPassingYear: '',
-    twelfthPercentage: '',
-    twelfthSchool: '',
-    twelfthBoard: 'CBSE',
-    twelfthStream: 'Science (PCM - Physics, Chemistry, Math)',
-    twelfthPassingYear: '',
+    tenthPercentage: initialStudent?.tenthPercentage || '',
+    tenthSchool: initialStudent?.tenthSchool || '',
+    tenthBoard: initialStudent?.tenthBoard || 'CBSE',
+    tenthPassingYear: initialStudent?.tenthPassingYear || '',
+    twelfthPercentage: initialStudent?.twelfthPercentage || '',
+    twelfthSchool: initialStudent?.twelfthSchool || '',
+    twelfthBoard: initialStudent?.twelfthBoard || 'CBSE',
+    twelfthStream: initialStudent?.twelfthStream || 'Science (PCM - Physics, Chemistry, Math)',
+    twelfthPassingYear: initialStudent?.twelfthPassingYear || '',
     // Step 4: Graduation
-    graduationStatus: 'completed', // 'completed' | 'pursuing' | 'not_applicable'
-    graduationDegree: '',
-    graduationCollege: '',
-    graduationScore: '',
-    graduationPassingYear: '',
-  });
+    graduationStatus: initialStudent?.graduationStatus || 'completed', // 'completed' | 'pursuing' | 'not_applicable'
+    graduationDegree: initialStudent?.graduationDegree || '',
+    graduationCollege: initialStudent?.graduationCollege || '',
+    graduationScore: initialStudent?.graduationScore || '',
+    graduationPassingYear: initialStudent?.graduationPassingYear || '',
+  }));
 
   const [customExamInput, setCustomExamInput] = useState('');
 
-  // Prepopulate from existing profile or Clerk
-  useEffect(() => {
-    async function loadProfile() {
-      try {
-        const res = await fetch('/api/student/profile');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.student) {
-            setFormData((prev) => ({
-              ...prev,
-              ...data.student,
-              name: data.student.name || (user?.fullName || ''),
-              email: data.student.email || (user?.primaryEmailAddress?.emailAddress || ''),
-              targetExams: Array.isArray(data.student.targetExams) ? data.student.targetExams : [],
-            }));
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load profile:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+  // TanStack Mutation: Save profile and invalidate query cache
+  const saveMutation = useMutation({
+    mutationFn: saveStudentProfile,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['studentProfile'] });
+      router.push('/student/dashboard');
+    },
+    onError: (err) => {
+      setError(err.message || 'Failed to save profile');
+    },
+  });
 
-    if (isUserLoaded) {
-      loadProfile();
-    }
-  }, [isUserLoaded, user]);
+
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -156,30 +171,10 @@ export default function StudentOnboardingPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!validateStep(currentStep)) return;
-
-    setIsSubmitting(true);
     setError(null);
-
-    try {
-      const res = await fetch('/api/student/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to save profile');
-      }
-
-      // Redirect to student dashboard
-      router.push('/student/dashboard');
-    } catch (err) {
-      setError(err.message);
-      setIsSubmitting(false);
-    }
+    saveMutation.mutate(formData);
   };
 
   const stepTitles = [
@@ -189,6 +184,9 @@ export default function StudentOnboardingPage() {
     'Graduation',
     'Review & Finish',
   ];
+
+  const isLoading = profileQuery.isLoading;
+  const isSubmitting = saveMutation.isPending;
 
   if (isLoading) {
     return (
@@ -200,6 +198,7 @@ export default function StudentOnboardingPage() {
       </div>
     );
   }
+
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">

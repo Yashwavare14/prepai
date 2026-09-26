@@ -1,30 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
+import { useQuery } from '@tanstack/react-query';
+import { fetchStudentProfile } from '@/lib/queries/student';
 
 export default function StudentDashboardPage() {
   const { user } = useUser();
-  const [student, setStudent] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchProfile() {
-      try {
-        const res = await fetch('/api/student/profile');
-        if (res.ok) {
-          const data = await res.json();
-          setStudent(data.student);
-        }
-      } catch (err) {
-        console.error('Failed to load student dashboard:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchProfile();
-  }, []);
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ['studentProfile'],
+    queryFn: fetchStudentProfile,
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
+    retry: 1,
+  });
+
+  const student = data?.student;
 
   if (isLoading) {
     return (
@@ -37,7 +33,24 @@ export default function StudentDashboardPage() {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium flex items-center justify-between">
+          <span>⚠️ Failed to load dashboard: {error?.message || 'Unknown error'}</span>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const displayName = student?.name || user?.fullName || 'Exam Aspirant';
+
   const targetExams = Array.isArray(student?.targetExams) ? student.targetExams : [];
   const dailyGoal = student?.dailyGoalQuestions || 20;
   const streak = student?.currentStreakDays || 0;

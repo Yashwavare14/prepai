@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchExams, fetchTopics, uploadPdf, extractPdfSections, saveExtractedQuestions } from '@/lib/queries/admin';
+import { EXAM_SECTIONS, getTopicsForSection } from '@/lib/constants/taxonomy';
+import MathRenderer from '@/components/common/MathRenderer';
 
 const staticExamOptions = ['SSC CGL', 'RRB', 'IBPS', 'UPSC', 'Bank PO'];
-const staticTopicOptions = ['Quants', 'GK', 'Reasoning', 'English', 'General Science'];
 
 const providerModels = {
   gemini: [
@@ -28,6 +29,7 @@ const formatError = (error) => {
 export default function UploadPdfPage() {
   const [file, setFile] = useState(null);
   const [exam, setExam] = useState('');
+  const [paperSection, setPaperSection] = useState('Quantitative Aptitude');
   const [topic, setTopic] = useState('');
   const [provider, setProvider] = useState('gemini');
   const [model, setModel] = useState('gemini-2.5-flash');
@@ -52,12 +54,15 @@ export default function UploadPdfPage() {
   });
 
   const topicsQuery = useQuery({
-    queryKey: ['adminTopics', exam],
+    queryKey: ['adminTopics', exam, paperSection],
     queryFn: fetchTopics,
-    enabled: Boolean(exam),
+    enabled: Boolean(exam || paperSection),
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 1,
   });
+
+  const topicOptions = topicsQuery.data?.length ? topicsQuery.data : getTopicsForSection(paperSection);
+
 
   // 1. Extract questions from PDF via external service
   const uploadMutation = useMutation({
@@ -110,7 +115,6 @@ export default function UploadPdfPage() {
   });
 
   const examOptions = examsQuery.data?.length ? examsQuery.data : staticExamOptions;
-  const topicOptions = topicsQuery.data?.length ? topicsQuery.data : staticTopicOptions;
   const isUploading = uploadMutation.isLoading;
   const isSavingAll = saveAllMutation.isLoading;
 
@@ -180,6 +184,7 @@ export default function UploadPdfPage() {
       tempId: question.tempId,
       questions: [question],
       exam: question.exam || exam,
+      paperSection: question.paperSection || question.paper_section || paperSection,
       topic: question.topic || topic,
       filename: question.source || file?.name || 'pdf-extract',
       status: 'approved',
@@ -198,11 +203,13 @@ export default function UploadPdfPage() {
     saveAllMutation.mutate({
       questions: unapproved,
       exam,
+      paperSection,
       topic,
       filename: file?.name || 'pdf-extract',
       status: 'approved',
     });
   };
+
 
   const unapprovedCount = extractedQuestions.filter((q) => q.status !== 'approved').length;
   const approvedCount = extractedQuestions.filter((q) => q.status === 'approved').length;
@@ -313,19 +320,16 @@ export default function UploadPdfPage() {
           )}
         </div>
 
-        {/* Exam & Topic Mapping */}
+        {/* Exam, Section & Topic Mapping */}
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700">2. Assign to Exam &amp; Topic</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700">2. Assign to Exam, Section &amp; Topic</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-semibold mb-2 text-gray-700">Target Exam</label>
               <select
                 value={exam}
-                onChange={(e) => {
-                  setExam(e.target.value);
-                  setTopic('');
-                }}
+                onChange={(e) => setExam(e.target.value)}
                 required
                 className="w-full px-4 py-2 bg-white border-2 border-gray-300 rounded text-gray-900 focus:outline-none focus:border-blue-500"
               >
@@ -339,13 +343,31 @@ export default function UploadPdfPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">Target Topic</label>
+              <label className="block text-sm font-semibold mb-2 text-gray-700">Paper Section (Subject)</label>
+              <select
+                value={paperSection}
+                onChange={(e) => {
+                  setPaperSection(e.target.value);
+                  setTopic('');
+                }}
+                required
+                className="w-full px-4 py-2 bg-white border-2 border-gray-300 rounded text-gray-900 focus:outline-none focus:border-blue-500"
+              >
+                {EXAM_SECTIONS.map((sec) => (
+                  <option key={sec} value={sec}>
+                    {sec}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-gray-700">Granular Topic</label>
               <select
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 required
-                disabled={!exam}
-                className="w-full px-4 py-2 bg-white border-2 border-gray-300 rounded text-gray-900 focus:outline-none focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 bg-white border-2 border-gray-300 rounded text-gray-900 focus:outline-none focus:border-blue-500"
               >
                 <option value="">Select Topic</option>
                 {topicOptions.map((topicOption) => (
@@ -357,6 +379,7 @@ export default function UploadPdfPage() {
             </div>
           </div>
         </div>
+
 
         <button
           type="submit"
@@ -450,8 +473,9 @@ export default function UploadPdfPage() {
                         Q{idx + 1}
                       </span>
                       <span className="text-xs text-gray-500 font-medium">
-                        {q.exam} • {q.topic}
+                        {q.exam || exam} • {(q.paperSection || q.paper_section || paperSection)} / {(q.topic || topic)}
                       </span>
+
                       {q.year && (
                         <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded border border-indigo-200">
                           📅 {q.year}
@@ -488,9 +512,11 @@ export default function UploadPdfPage() {
                     </p>
                   )}
 
-                  <h3 className="font-semibold text-gray-900 mb-3 text-base leading-relaxed whitespace-pre-wrap">
-                    {q.question}
-                  </h3>
+                  <MathRenderer
+                    text={q.question}
+                    as="h3"
+                    className="font-semibold text-gray-900 mb-3 text-base leading-relaxed"
+                  />
 
                   {/* Options Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-sm mb-3">
@@ -499,15 +525,18 @@ export default function UploadPdfPage() {
                       return (
                         <div
                           key={key}
-                          className={`p-2.5 rounded border ${
+                          className={`p-2.5 rounded border flex items-start justify-between gap-2 ${
                             isCorrect
                               ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-medium'
                               : 'bg-gray-50 border-gray-200 text-gray-800'
                           }`}
                         >
-                          <strong>{key})</strong> {q.options?.[key] || 'N/A'}
+                          <div className="flex items-start gap-1.5 flex-1 min-w-0">
+                            <strong className="shrink-0">{key})</strong>
+                            <MathRenderer text={q.options?.[key] || 'N/A'} as="span" className="min-w-0" />
+                          </div>
                           {isCorrect && (
-                            <span className="ml-2 text-xs bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded font-bold">
+                            <span className="shrink-0 text-xs bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded font-bold">
                               Correct
                             </span>
                           )}
@@ -524,9 +553,9 @@ export default function UploadPdfPage() {
 
                   {/* Explanation */}
                   {q.explanation && (
-                    <div className="mb-4 p-3 bg-gray-900 rounded text-sm text-gray-50">
-                      <strong className="text-emerald-400">Explanation:</strong>
-                      <p className="mt-1 text-gray-200 whitespace-pre-wrap">{q.explanation}</p>
+                    <div className="mb-4 p-3.5 bg-gray-900 rounded text-sm text-gray-50">
+                      <strong className="text-emerald-400 block mb-1">Explanation:</strong>
+                      <MathRenderer text={q.explanation} as="div" className="text-gray-200" />
                     </div>
                   )}
 

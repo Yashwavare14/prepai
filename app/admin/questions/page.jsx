@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { EXAM_SECTIONS, getTopicsForSection } from '@/lib/constants/taxonomy';
+import MathRenderer from '@/components/common/MathRenderer';
 
 const staticExamOptions = ['SSC CGL', 'RRB', 'IBPS', 'UPSC', 'Bank PO'];
-const staticTopicOptions = ['Quants', 'GK', 'Reasoning', 'English', 'General Science'];
 
 const formatError = (error) => {
   if (error instanceof Error) return error.message;
@@ -12,9 +13,10 @@ const formatError = (error) => {
 };
 
 const fetchQuestions = async ({ queryKey }) => {
-  const [, exam, topic, year] = queryKey;
+  const [, exam, paperSection, topic, year] = queryKey;
   const params = new URLSearchParams();
   if (exam) params.append('exam', exam);
+  if (paperSection) params.append('paperSection', paperSection);
   if (topic) params.append('topic', topic);
   if (year) params.append('year', year);
 
@@ -39,9 +41,19 @@ const fetchExams = async () => {
   return res.json();
 };
 
+const fetchPaperSections = async () => {
+  const res = await fetch('/api/filters/sections');
+  if (!res.ok) return EXAM_SECTIONS;
+  return res.json();
+};
+
 const fetchTopics = async ({ queryKey }) => {
-  const [, exam] = queryKey;
-  const res = await fetch(`/api/filters/topics?exam=${encodeURIComponent(exam)}`);
+  const [, exam, section] = queryKey;
+  const params = new URLSearchParams();
+  if (exam) params.append('exam', exam);
+  if (section) params.append('section', section);
+
+  const res = await fetch(`/api/filters/topics?${params.toString()}`);
   if (!res.ok) {
     throw new Error('Failed to load topics');
   }
@@ -88,9 +100,10 @@ const deleteQuestion = async (id) => {
 };
 
 export default function AdminQuestionsPage() {
-  const [filters, setFilters] = useState({ exam: '', topic: '', year: '', status: 'all' });
+  const [filters, setFilters] = useState({ exam: '', paperSection: '', topic: '', year: '', status: 'all' });
   const [generateForm, setGenerateForm] = useState({
     exam: '',
+    paperSection: '',
     topic: '',
     difficulty: 'medium',
     count: 10,
@@ -109,10 +122,17 @@ export default function AdminQuestionsPage() {
     retry: 1,
   });
 
+  const sectionsQuery = useQuery({
+    queryKey: ['adminSections'],
+    queryFn: fetchPaperSections,
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
+
   const topicsQuery = useQuery({
-    queryKey: ['adminTopics', filters.exam],
+    queryKey: ['adminTopics', filters.exam, filters.paperSection],
     queryFn: fetchTopics,
-    enabled: Boolean(filters.exam),
+    enabled: Boolean(filters.exam || filters.paperSection),
     staleTime: 1000 * 60 * 5,
     retry: 1,
   });
@@ -125,19 +145,20 @@ export default function AdminQuestionsPage() {
   });
 
   const genTopicsQuery = useQuery({
-    queryKey: ['adminGenTopics', generateForm.exam],
+    queryKey: ['adminGenTopics', generateForm.exam, generateForm.paperSection],
     queryFn: fetchTopics,
-    enabled: Boolean(generateForm.exam),
+    enabled: Boolean(generateForm.exam || generateForm.paperSection),
     staleTime: 1000 * 60 * 5,
     retry: 1,
   });
 
   const questionsQuery = useQuery({
-    queryKey: ['adminQuestions', filters.exam, filters.topic, filters.year],
+    queryKey: ['adminQuestions', filters.exam, filters.paperSection, filters.topic, filters.year],
     queryFn: fetchQuestions,
     keepPreviousData: true,
     retry: 1,
   });
+
 
   const generateMutation = useMutation({
     mutationFn: generateQuestions,
@@ -178,8 +199,13 @@ export default function AdminQuestionsPage() {
   });
 
   const examOptions = examsQuery.data?.length ? examsQuery.data : staticExamOptions;
-  const filterTopicOptions = topicsQuery.data?.length ? topicsQuery.data : staticTopicOptions;
-  const genTopicOptions = genTopicsQuery.data?.length ? genTopicsQuery.data : staticTopicOptions;
+  const sectionOptions = sectionsQuery.data?.length ? sectionsQuery.data : EXAM_SECTIONS;
+  const filterTopicOptions = topicsQuery.data?.length
+    ? Array.from(new Set([...getTopicsForSection(filters.paperSection), ...topicsQuery.data]))
+    : getTopicsForSection(filters.paperSection);
+  const genTopicOptions = genTopicsQuery.data?.length
+    ? Array.from(new Set([...getTopicsForSection(generateForm.paperSection), ...genTopicsQuery.data]))
+    : getTopicsForSection(generateForm.paperSection);
 
   const rawQuestions = questionsQuery.data ?? [];
   const questions = rawQuestions.filter((q) => {
@@ -240,7 +266,7 @@ export default function AdminQuestionsPage() {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Manage Questions</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Browse question bank, review pending submissions, and generate questions via AI.
+          Browse question bank by section &amp; topic, review pending submissions, and generate questions via AI.
         </p>
       </div>
 
@@ -254,12 +280,12 @@ export default function AdminQuestionsPage() {
         </div>
 
         <form onSubmit={handleGenerateQuestions} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-semibold mb-1.5 text-gray-700">Target Exam</label>
               <select
                 value={generateForm.exam}
-                onChange={(e) => setGenerateForm({ ...generateForm, exam: e.target.value, topic: '' })}
+                onChange={(e) => setGenerateForm({ ...generateForm, exam: e.target.value })}
                 required
                 className="w-full px-4 py-2 bg-white border-2 border-gray-300 rounded text-gray-900 focus:outline-none focus:border-blue-500"
               >
@@ -273,12 +299,28 @@ export default function AdminQuestionsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1.5 text-gray-700">Target Topic</label>
+              <label className="block text-sm font-semibold mb-1.5 text-gray-700">Paper Section (Subject)</label>
+              <select
+                value={generateForm.paperSection}
+                onChange={(e) => setGenerateForm({ ...generateForm, paperSection: e.target.value, topic: '' })}
+                className="w-full px-4 py-2 bg-white border-2 border-gray-300 rounded text-gray-900 focus:outline-none focus:border-blue-500"
+              >
+                <option value="">Select Section</option>
+                {sectionOptions.map((sec) => (
+                  <option key={sec} value={sec}>
+                    {sec}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold mb-1.5 text-gray-700">Granular Topic</label>
               <select
                 value={generateForm.topic}
                 onChange={(e) => setGenerateForm({ ...generateForm, topic: e.target.value })}
                 required
-                disabled={!generateForm.exam}
+                disabled={!generateForm.paperSection && !generateForm.exam}
                 className="w-full px-4 py-2 bg-white border-2 border-gray-300 rounded text-gray-900 focus:outline-none focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 <option value="">Select Topic</option>
@@ -289,7 +331,9 @@ export default function AdminQuestionsPage() {
                 ))}
               </select>
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold mb-1.5 text-gray-700">Difficulty</label>
               <select
@@ -349,12 +393,12 @@ export default function AdminQuestionsPage() {
       <div className="p-5 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700">2. Filter Question Bank</h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
           <div>
             <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Filter by Exam</label>
             <select
               value={filters.exam}
-              onChange={(e) => setFilters({ ...filters, exam: e.target.value, topic: '' })}
+              onChange={(e) => setFilters({ ...filters, exam: e.target.value })}
               className="w-full px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-800 focus:outline-none focus:border-blue-500"
             >
               <option value="">All Exams</option>
@@ -367,12 +411,27 @@ export default function AdminQuestionsPage() {
           </div>
 
           <div>
+            <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Filter by Section</label>
+            <select
+              value={filters.paperSection}
+              onChange={(e) => setFilters({ ...filters, paperSection: e.target.value, topic: '' })}
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-800 focus:outline-none focus:border-blue-500"
+            >
+              <option value="">All Sections</option>
+              {sectionOptions.map((sec) => (
+                <option key={sec} value={sec}>
+                  {sec}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Filter by Topic</label>
             <select
               value={filters.topic}
               onChange={(e) => setFilters({ ...filters, topic: e.target.value })}
-              disabled={!filters.exam}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-800 focus:outline-none focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-800 focus:outline-none focus:border-blue-500"
             >
               <option value="">All Topics</option>
               {filterTopicOptions.map((topic) => (
@@ -398,6 +457,7 @@ export default function AdminQuestionsPage() {
               ))}
             </select>
           </div>
+
 
           <div>
             <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Status</label>
@@ -474,8 +534,9 @@ export default function AdminQuestionsPage() {
                         #{idx + 1} (ID: {q.id})
                       </span>
                       <span className="text-xs text-gray-500 font-medium">
-                        {q.exam || 'General'} • {q.topic}
+                        {q.exam || 'General'} • {q.paperSection ? `${q.paperSection} / ${q.topic}` : q.topic}
                       </span>
+
                       {q.year && (
                         <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded border border-indigo-200">
                           📅 {q.year}
@@ -512,9 +573,11 @@ export default function AdminQuestionsPage() {
                     </p>
                   )}
 
-                  <h3 className="font-semibold text-gray-900 mb-3 text-base leading-relaxed whitespace-pre-wrap">
-                    {q.question}
-                  </h3>
+                  <MathRenderer
+                    text={q.question}
+                    as="h3"
+                    className="font-semibold text-gray-900 mb-3 text-base leading-relaxed"
+                  />
 
                   {/* Options Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-sm mb-3">
@@ -523,15 +586,18 @@ export default function AdminQuestionsPage() {
                       return (
                         <div
                           key={key}
-                          className={`p-2.5 rounded border ${
+                          className={`p-2.5 rounded border flex items-start justify-between gap-2 ${
                             isCorrect
                               ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-medium'
                               : 'bg-gray-50 border-gray-200 text-gray-800'
                           }`}
                         >
-                          <strong>{key})</strong> {q.options?.[key] || 'N/A'}
+                          <div className="flex items-start gap-1.5 flex-1 min-w-0">
+                            <strong className="shrink-0">{key})</strong>
+                            <MathRenderer text={q.options?.[key] || 'N/A'} as="span" className="min-w-0" />
+                          </div>
                           {isCorrect && (
-                            <span className="ml-2 text-xs bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded font-bold">
+                            <span className="shrink-0 text-xs bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded font-bold">
                               Correct
                             </span>
                           )}
@@ -563,9 +629,9 @@ export default function AdminQuestionsPage() {
 
                   {/* Explanation */}
                   {q.explanation && (
-                    <div className="mb-4 p-3 bg-gray-900 rounded text-sm text-gray-50">
-                      <strong className="text-emerald-400">Explanation:</strong>
-                      <p className="mt-1 text-gray-200 whitespace-pre-wrap">{q.explanation}</p>
+                    <div className="mb-4 p-3.5 bg-gray-900 rounded text-sm text-gray-50">
+                      <strong className="text-emerald-400 block mb-1">Explanation:</strong>
+                      <MathRenderer text={q.explanation} as="div" className="text-gray-200" />
                     </div>
                   )}
 

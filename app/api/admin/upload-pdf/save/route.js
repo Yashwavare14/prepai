@@ -3,7 +3,7 @@ import { insertQuestionsFromPdf, logPdfSource, markPdfProcessed } from "@/lib/db
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { questions, exam, topic, filename, status = "approved" } = body;
+    const { questions, exam, topic, paperSection, section, filename, status = "approved" } = body;
 
     const list = Array.isArray(questions) ? questions : [questions];
     const validList = list.filter((q) => q && q.question && q.options);
@@ -22,10 +22,12 @@ export async function POST(req) {
 
     const inserted = await insertQuestionsFromPdf(validList, {
       topic,
+      paperSection: paperSection || section || null,
       exam,
       filename: filename || "pdf-extract",
       status,
     });
+
 
     if (sourceId) {
       await markPdfProcessed(sourceId);
