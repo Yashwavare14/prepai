@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Show, UserButton } from "@clerk/nextjs";
+import { Show, UserButton, OrganizationSwitcher } from "@clerk/nextjs";
 
 
 export default function Home() {
@@ -34,19 +34,30 @@ export default function Home() {
 
 
             <Show when="signed-in">
-              <Link
-                href="/student/dashboard"
-                className="px-3.5 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors mr-2"
-              >
-                Student Dashboard →
-              </Link>
-              <Link
-                href="/admin/upload-pdf"
-                className="px-3.5 py-2 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors mr-2"
-              >
-                Admin Portal
-              </Link>
-              <UserButton />
+              <div className="flex items-center gap-3">
+                <OrganizationSwitcher
+                  afterCreateOrganizationUrl="/institute/dashboard"
+                  afterSelectOrganizationUrl="/institute/dashboard"
+                  appearance={{
+                    elements: {
+                      rootBox: "flex items-center",
+                    },
+                  }}
+                />
+                <Link
+                  href="/student/dashboard"
+                  className="px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
+                >
+                  Student Portal
+                </Link>
+                <Link
+                  href="/institute/dashboard"
+                  className="px-3.5 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+                >
+                  🏫 Tuition Portal
+                </Link>
+                <UserButton />
+              </div>
             </Show>
           </div>
         </div>
