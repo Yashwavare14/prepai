@@ -1,8 +1,12 @@
 import { fetchQuestions, insertGeneratedQuestions } from "@/lib/db/queries";
 import { generateMockTest } from "@/lib/gemini/generateMockTest";
 import { generateTestSchema } from "@/lib/validation/schemas";
+import { requireSuperAdmin } from "@/lib/security/auth";
 
 export async function POST(req) {
+  const denied = await requireSuperAdmin();
+  if (denied) return denied;
+
   try {
     const body = await req.json();
     const result = generateTestSchema.safeParse(body);

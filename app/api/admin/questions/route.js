@@ -1,9 +1,9 @@
 import { fetchAllQuestions, insertQuestion } from "@/lib/db/queries";
 import { insertQuestionSchema } from "@/lib/validation/schemas";
-import { requireAuth } from "@/lib/security/auth";
+import { requireSuperAdmin } from "@/lib/security/auth";
 
 export async function GET(req) {
-  const authError = await requireAuth();
+  const authError = await requireSuperAdmin();
   if (authError) return authError;
 
   try {
@@ -26,7 +26,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  const authError = await requireAuth();
+  const authError = await requireSuperAdmin();
   if (authError) return authError;
 
   try {

@@ -56,28 +56,31 @@ export async function POST(req) {
       );
     }
 
-    // Get avatar / email fallback from Clerk if not passed
-    let avatarUrl = body.avatarUrl;
-    let email = result.data.email;
-    if (!email || !avatarUrl) {
-      const user = await currentUser();
-      if (!email) email = user?.primaryEmailAddress?.emailAddress || "";
-      if (!avatarUrl) avatarUrl = user?.imageUrl || null;
+    // Email and avatar always come from Clerk, never from the request body, so a user
+    // cannot claim someone else's email (the column is unique) or inject an avatar URL.
+    const user = await currentUser();
+    const email = user?.primaryEmailAddress?.emailAddress;
+    if (!email) {
+      return Response.json({ error: "Your account has no primary email address" }, { status: 400 });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { email: _ignoredEmail, ...profile } = result.data;
+
+    // `role` is deliberately not set here: new rows get the column default ('student'),
+    // and saving a profile must never change an existing row's role.
     const studentData = {
       id: userId,
-      ...result.data,
+      ...profile,
       email,
-      avatarUrl,
+      avatarUrl: user?.imageUrl || null,
       onboardingCompleted: true,
-      role: "student",
     };
 
     const savedStudent = await upsertStudent(studentData);
     return Response.json({ success: true, student: savedStudent });
   } catch (err) {
     console.error("POST /api/student/profile error:", err);
-    return Response.json({ error: err.message || "Failed to save profile" }, { status: 500 });
+    return Response.json({ error: "Failed to save profile" }, { status: 500 });
   }
 }

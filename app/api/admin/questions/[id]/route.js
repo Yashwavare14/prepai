@@ -1,11 +1,15 @@
 import { deleteQuestion } from "@/lib/db/queries";
 import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/security/auth";
 
 const paramsSchema = z.object({
   id: z.string().min(1),
 });
 
 export async function DELETE(req, { params }) {
+  const denied = await requireSuperAdmin();
+  if (denied) return denied;
+
   try {
     const { id } = await params;
     const parsed = paramsSchema.safeParse({ id });

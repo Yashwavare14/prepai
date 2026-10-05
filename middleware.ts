@@ -1,6 +1,11 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { resolveSuperAdmin } from "@/lib/security/auth";
 
+// Platform admin area. Restricted to super admins because questions are not yet
+// scoped to an institute: an institute (org) admin must not be able to read, approve
+// or delete another institute's questions. Any signed-in user can create an org and
+// become its org:admin, so org:admin alone must never unlock these routes.
 const isSuperAdminRoute = createRouteMatcher([
   "/admin(.*)",
   "/api/admin(.*)",
@@ -18,67 +23,58 @@ const isAuthRequiredRoute = createRouteMatcher([
   "/api/institute(.*)",
   "/student(.*)",
   "/api/student(.*)",
+  // Calls Gemini on every request, so it must not be open to anonymous traffic.
+  "/api/generate-mock-test(.*)",
 ]);
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
-  .split(",")
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
+function forbidden(isApi: boolean, req: Request, message: string, pageRedirect: string) {
+  if (isApi) {
+    return NextResponse.json({ error: message }, { status: 403 });
+  }
+  return NextResponse.redirect(new URL(pageRedirect, req.url));
+}
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isAuthRequiredRoute(req)) {
-    const session = await auth();
-    const isApi = req.nextUrl.pathname.startsWith("/api/");
+  if (!isAuthRequiredRoute(req)) return;
 
-    // 1. Unauthenticated check
-    if (!session.userId) {
-      if (isApi) {
-        return NextResponse.json({ error: "Unauthorized: Please sign in" }, { status: 401 });
-      }
-      return session.redirectToSignIn({ returnBackUrl: req.url });
+  const session = await auth();
+  const isApi = req.nextUrl.pathname.startsWith("/api/");
+
+  // 1. Unauthenticated check
+  if (!session.userId) {
+    if (isApi) {
+      return NextResponse.json({ error: "Unauthorized: Please sign in" }, { status: 401 });
     }
+    return session.redirectToSignIn({ returnBackUrl: req.url });
+  }
 
-    type SessionClaimsWithRole = {
-      metadata?: { role?: string };
-      role?: string;
-      email?: string;
-    };
-    const claims = session.sessionClaims as unknown as SessionClaimsWithRole;
-    const metadataRole = claims?.metadata?.role || claims?.role;
-    const userEmail = claims?.email?.toLowerCase();
-    const isSuperAdmin =
-      metadataRole === "admin" ||
-      metadataRole === "super_admin" ||
-      (userEmail && ADMIN_EMAILS.includes(userEmail));
-    const isInstituteAdmin = isSuperAdmin || session.orgRole === "org:admin";
+  const needsAdminCheck = isSuperAdminRoute(req) || isInstituteDashboardRoute(req);
+  const isSuperAdmin = needsAdminCheck
+    ? await resolveSuperAdmin({ userId: session.userId, sessionClaims: session.sessionClaims })
+    : false;
 
-    // 2. Admin routes check (Super Admin or Institute Admin)
-    if (isSuperAdminRoute(req)) {
-      if (!isSuperAdmin && !isInstituteAdmin) {
-        if (isApi) {
-          return NextResponse.json(
-            { error: "Forbidden: Administrator or Faculty privileges required" },
-            { status: 403 }
-          );
-        }
-        const unauthorizedUrl = new URL("/unauthorized", req.url);
-        return NextResponse.redirect(unauthorizedUrl);
-      }
+  // 2. Platform admin routes: super admins only
+  if (isSuperAdminRoute(req) && !isSuperAdmin) {
+    return forbidden(isApi, req, "Forbidden: Super Administrator access required", "/unauthorized");
+  }
+
+  // 3. Institute faculty dashboard
+  if (isInstituteDashboardRoute(req) && !isSuperAdmin) {
+    if (!session.orgId) {
+      return forbidden(
+        isApi,
+        req,
+        "Forbidden: Please select or join a Tuition / Institute workspace",
+        "/institute/create"
+      );
     }
-
-    // 3. Institute faculty dashboard check
-    if (isInstituteDashboardRoute(req)) {
-      if (!session.orgId && !isSuperAdmin) {
-        // No organization selected: redirect to registration/selection
-        const createOrgUrl = new URL("/institute/create", req.url);
-        return NextResponse.redirect(createOrgUrl);
-      }
-
-      if (!isInstituteAdmin) {
-        // Enrolled student trying to access faculty dashboard -> redirect to student dashboard
-        const studentDashboardUrl = new URL("/student/dashboard", req.url);
-        return NextResponse.redirect(studentDashboardUrl);
-      }
+    if (session.orgRole !== "org:admin") {
+      return forbidden(
+        isApi,
+        req,
+        "Forbidden: Institute Administrator / Faculty access required",
+        "/student/dashboard"
+      );
     }
   }
 });

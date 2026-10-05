@@ -1,8 +1,12 @@
 import { extractSections } from "@/lib/external/pdfParser";
+import { requireSuperAdmin } from "@/lib/security/auth";
 
 const MAX_PDF_SIZE = 25 * 1024 * 1024; // 25MB
 
 export async function POST(req) {
+  const denied = await requireSuperAdmin();
+  if (denied) return denied;
+
   try {
     const formData = await req.formData();
     const file = formData.get("pdf") || formData.get("file") || formData.get("pdfFile");
