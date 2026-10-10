@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth, useSignIn } from "@clerk/nextjs";
 import { Alert, Button, Checkbox, Field, Input } from "@/components/ui";
 import { AuthCard } from "@/components/shells/auth-shell";
 import { clerkErrorMessage } from "@/lib/auth/clerk-errors";
 import { PENDING_SESSION_MESSAGE, useAuthFinish } from "./use-auth-finish";
+import { GoogleButton, OrDivider } from "./google-button";
 
 type Step = "credentials" | "email-code" | "totp";
 
@@ -17,7 +19,7 @@ type Step = "credentials" | "email-code" | "totp";
 export function SignInForm() {
   const { signIn, fetchStatus } = useSignIn();
   const { isSignedIn } = useAuth();
-  const { navigate, goToDashboard } = useAuthFinish({
+  const { navigate, goToDashboard, ssoUrls } = useAuthFinish({
     onPendingTask: () => {
       setFinishing(false);
       setFormError(PENDING_SESSION_MESSAGE);
@@ -33,6 +35,7 @@ export function SignInForm() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Already signed in: skip the form. Not while finishing our own sign-in,
   // because finalize() is already navigating.
@@ -40,7 +43,39 @@ export function SignInForm() {
     if (isSignedIn && !finishing) goToDashboard();
   }, [isSignedIn, finishing, goToDashboard]);
 
-  const busy = fetchStatus === "fetching" || finishing;
+  // Coming back from Google when Clerk wants an extra check (new device / two-step):
+  // resume the existing sign-in at the code step instead of starting over.
+  const searchParams = useSearchParams();
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (resumed.current || searchParams.get("continue") !== "sso") return;
+    resumed.current = true;
+    if (signIn.status !== "needs_second_factor" && signIn.status !== "needs_client_trust") return;
+    const strategies = signIn.supportedSecondFactors.map((f) => f.strategy);
+    void (async () => {
+      if (strategies.includes("email_code")) {
+        const { error } = await signIn.mfa.sendEmailCode();
+        if (error) return setFormError(clerkErrorMessage(error));
+        setStep("email-code");
+      } else if (strategies.includes("totp")) {
+        await Promise.resolve();
+        setStep("totp");
+      }
+    })();
+  }, [searchParams, signIn]);
+
+  const busy = fetchStatus === "fetching" || finishing || googleLoading;
+
+  /** Redirects to Google. New Google users are moved to sign-up automatically on return. */
+  async function signInWithGoogle() {
+    setFormError(null);
+    setGoogleLoading(true);
+    const { error } = await signIn.sso({ strategy: "oauth_google", ...ssoUrls() });
+    if (error) {
+      setGoogleLoading(false);
+      setFormError(clerkErrorMessage(error));
+    }
+  }
 
   async function finish() {
     setFinishing(true);
@@ -122,7 +157,7 @@ export function SignInForm() {
         description={
           step === "totp"
             ? "Open your authenticator app and enter the 6-digit code for Pariksha Studio."
-            : `We sent a 6-digit code to ${email.trim()} to confirm it's you.`
+            : `We sent a 6-digit code to ${email.trim() || signIn.identifier || "your email address"} to confirm it's you.`
         }
       >
         <form onSubmit={handleCode} noValidate className="flex flex-col gap-4">
@@ -177,6 +212,11 @@ export function SignInForm() {
         </>
       }
     >
+      <div className="mb-4 flex flex-col gap-4">
+        <GoogleButton onClick={signInWithGoogle} loading={googleLoading} disabled={busy && !googleLoading} />
+        <OrDivider />
+      </div>
+
       <form onSubmit={handleCredentials} noValidate className="flex flex-col gap-4">
         <Field id="signin-email" label="Email" error={emailError}>
           <Input
@@ -212,7 +252,14 @@ export function SignInForm() {
 
         {formError && <Alert tone="error">{formError}</Alert>}
 
-        <Button type="submit" size="lg" block loading={busy} loadingText="Signing in…">
+        <Button
+          type="submit"
+          size="lg"
+          block
+          loading={busy && !googleLoading}
+          disabled={googleLoading}
+          loadingText="Signing in…"
+        >
           Sign in
         </Button>
       </form>

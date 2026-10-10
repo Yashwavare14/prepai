@@ -11,6 +11,9 @@ importers:
       '@clerk/nextjs':
         specifier: ^7.2.7
         version: 7.2.7(next@16.2.4(@babel/core@7.29.0(supports-color@7.2.0))(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@clerk/react':
+        specifier: 6.4.5
+        version: 6.4.5(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@google/genai':
         specifier: ^1.50.1
         version: 1.50.1(supports-color@7.2.0)

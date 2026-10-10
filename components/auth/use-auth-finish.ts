@@ -51,10 +51,22 @@ export function useAuthFinish(options: { onPendingTask?: (taskKey: string) => vo
     [destination, onPendingTask]
   );
 
+  /**
+   * URLs for signIn.sso() / signUp.sso(): Google returns to /sso-callback, which
+   * finishes the flow and then continues to /post-auth like any other sign-in.
+   */
+  const ssoUrls = useCallback(() => {
+    const origin = window.location.origin;
+    return {
+      redirectCallbackUrl: `${origin}/sso-callback`,
+      redirectUrl: `${origin}${destination()}`,
+    };
+  }, [destination]);
+
   /** For pages that find the user already signed in. */
   const goToDashboard = useCallback(() => {
     window.location.replace("/post-auth");
   }, []);
 
-  return { navigate, destination, goToDashboard };
+  return { navigate, destination, goToDashboard, ssoUrls };
 }

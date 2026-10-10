@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth, useSignUp } from "@clerk/nextjs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +12,7 @@ import { AuthCard } from "@/components/shells/auth-shell";
 import { clerkErrorCode, clerkErrorMessage } from "@/lib/auth/clerk-errors";
 import { INSTITUTE_JOIN_ENABLED, SIGNUP_EXAMS, SIGNUP_EXAM_VALUES } from "@/lib/constants/signup";
 import { PENDING_SESSION_MESSAGE, useAuthFinish } from "./use-auth-finish";
+import { GoogleButton, OrDivider } from "./google-button";
 
 const PASSWORD_HINT = "Use 8 or more characters with a letter and a number.";
 const RESEND_SECONDS = 30;
@@ -43,7 +45,9 @@ type SignUpValues = z.infer<typeof signUpSchema>;
 export function SignUpForm() {
   const { signUp, fetchStatus } = useSignUp();
   const { isSignedIn } = useAuth();
-  const { navigate, goToDashboard } = useAuthFinish({
+  // Sent back from Google because Clerk needs more details to finish the account.
+  const continuingFromGoogle = useSearchParams().get("continue") === "sso";
+  const { navigate, goToDashboard, ssoUrls } = useAuthFinish({
     onPendingTask: () => {
       setFinishing(false);
       setFormError(PENDING_SESSION_MESSAGE);
@@ -57,6 +61,7 @@ export function SignUpForm() {
   const [codeNotice, setCodeNotice] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [finishing, setFinishing] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const {
     register,
@@ -83,7 +88,35 @@ export function SignUpForm() {
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  const busy = fetchStatus === "fetching" || finishing || isSubmitting;
+  const busy = fetchStatus === "fetching" || finishing || isSubmitting || googleLoading;
+
+  /**
+   * Redirects to Google. The exam currently chosen in the form travels with the
+   * sign-up so onboarding can pre-fill it. Existing Google users are moved to
+   * sign-in automatically on return.
+   */
+  async function signUpWithGoogle() {
+    setFormError(null);
+    setGoogleLoading(true);
+    // If Clerk's bot check appears (it mounts at the bottom of the form), bring it into
+    // view so the person who just clicked Google sees what to do next.
+    window.setTimeout(() => {
+      const captcha = document.getElementById("clerk-captcha");
+      if (captcha?.childElementCount) captcha.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 1500);
+    const { error } = await signUp.sso({
+      strategy: "oauth_google",
+      ...ssoUrls(),
+      unsafeMetadata: {
+        targetExam: getValues("targetExam"),
+        termsAcceptedAt: new Date().toISOString(),
+      },
+    });
+    if (error) {
+      setGoogleLoading(false);
+      setFormError(clerkErrorMessage(error));
+    }
+  }
 
   async function finish() {
     setFinishing(true);
@@ -229,6 +262,27 @@ export function SignUpForm() {
         </>
       }
     >
+      {continuingFromGoogle && (
+        <Alert tone="info" className="mb-4">
+          Almost done. We need a few more details to finish creating your account. Continue with Google again, or
+          use the form below.
+        </Alert>
+      )}
+      <div className="mb-4 flex flex-col gap-4">
+        <div>
+          <GoogleButton
+            label="Sign up with Google"
+            onClick={signUpWithGoogle}
+            loading={googleLoading}
+            disabled={busy && !googleLoading}
+          />
+          <p className="m-0 mt-2 text-center text-[13px] text-muted">
+            By continuing with Google, you agree to the terms of use and privacy policy.
+          </p>
+        </div>
+        <OrDivider />
+      </div>
+
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         <Field id="signup-name" label="Full name" error={errors.fullName?.message}>
           <Input size="lg" type="text" autoComplete="name" {...register("fullName")} />
@@ -290,7 +344,14 @@ export function SignUpForm() {
 
         {formError && <Alert tone="error">{formError}</Alert>}
 
-        <Button type="submit" size="lg" block loading={busy} loadingText="Creating your account…">
+        <Button
+          type="submit"
+          size="lg"
+          block
+          loading={busy && !googleLoading}
+          disabled={googleLoading}
+          loadingText="Creating your account…"
+        >
           Create free account
         </Button>
       </form>

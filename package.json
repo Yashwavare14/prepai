@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^7.2.7",
+    "@clerk/react": "6.4.5",
     "@google/genai": "^1.50.1",
     "@hookform/resolvers": "^5.9.1",
     "@neondatabase/serverless": "^1.1.0",
