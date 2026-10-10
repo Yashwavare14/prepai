@@ -1,0 +1,135 @@
+/*
+ * Pariksha Studio design tokens.
+ *
+ * Raw values measured from the design export (pariksha-studio-design/). Every colour,
+ * radius, shadow and gradient used by the UI is defined here once. Tailwind utilities
+ * are generated from these in theme.css; component classes in components.css.
+ *
+ * The --brand-* group is the only set meant to be overridden at runtime: the student
+ * portal re-points it to an institute's colour (see lib/brand.ts, Phase 3).
+ */
+
+:root {
+  /* ---- Ink (text) ---- */
+  --ps-ink: #151736;            /* primary text */
+  --ps-ink-strong: #1e1b4b;     /* text on amber */
+  --ps-ink-nav: #2a2d5e;        /* public nav links */
+  --ps-ink-soft: #3b3f66;       /* student nav, body copy in lists */
+  --ps-muted: #4b4f72;          /* secondary text, table headers */
+
+  /* ---- Surfaces ---- */
+  --ps-bg-app: #f4f5fb;         /* portal and console background */
+  --ps-bg-public: #f6f7fc;      /* landing and auth background */
+  --ps-surface: #ffffff;
+  --ps-surface-hover: #f8f9fe;
+
+  /* ---- Lines ---- */
+  --ps-border: #e3e5f0;         /* card borders */
+  --ps-divider: #eceef7;        /* row separators */
+  --ps-track: #e6e8f5;          /* meter track */
+  --ps-input-border: #7f84b0;   /* 2px input borders */
+  --ps-border-hover: #8f93e8;   /* link-card hover border */
+  --ps-option-border: #c9cce6;  /* answer options, slot cards */
+  --ps-dashed: #a9add3;         /* dashed panels */
+
+  /* ---- Indigo scale (Pariksha Studio brand) ---- */
+  --ps-indigo-50: #eef0ff;
+  --ps-indigo-100: #e0e7ff;
+  --ps-indigo-150: #dcdfff;     /* hero body copy on dark */
+  --ps-indigo-200: #c7caf5;
+  --ps-indigo-300: #a5a8f0;     /* older chart bars */
+  --ps-indigo-350: #b6baf5;     /* ghost button border */
+  --ps-indigo-500: #6366f1;
+  --ps-indigo-600: #4f46e5;
+  --ps-indigo-700: #4338ca;     /* admin primary */
+  --ps-indigo-800: #3730a3;     /* portal and public primary */
+  --ps-indigo-900: #2b2a8f;     /* hover, pressed */
+  --ps-indigo-950: #1e1b6b;     /* gradient start */
+
+  /* ---- Sidebar / dark surfaces ---- */
+  --ps-night: #14143a;          /* admin sidebar, institutes band */
+  --ps-night-deep: #0e0e2c;     /* footer */
+  --ps-night-hover: #26276b;
+  --ps-night-card: #1f2060;
+  --ps-night-track: #3a3c8c;
+  --ps-night-label: #a9ade0;
+  --ps-night-sub: #b9bceb;
+  --ps-night-text: #d5d7f5;
+  --ps-on-dark-soft: #e6e8ff;   /* list text on dark */
+
+  /* ---- Teal (institute accent, gradient end) ---- */
+  --ps-teal-50: #e6f6f3;
+  --ps-teal-100: #ccfbf1;
+  --ps-teal-200: #a7ddd5;
+  --ps-teal-300: #5eead4;
+  --ps-teal-400: #2dd4bf;
+  --ps-teal-700: #0f766e;
+  --ps-teal-800: #0b5c55;
+
+  /* ---- Amber (CTA, focus) ---- */
+  --ps-amber-400: #fbbf24;      /* landing CTA, badges */
+  --ps-amber-500: #f59e0b;      /* focus ring, CTA hover */
+
+  /* ---- Status (always shown with a text label, never colour alone) ---- */
+  --ps-ok-bg: #d1fae5;
+  --ps-ok-fg: #065f46;
+  --ps-ok: #047857;
+  --ps-warn-bg: #fef3c7;
+  --ps-warn-fg: #92400e;
+  --ps-warn: #b45309;
+  --ps-bad-bg: #fee2e2;
+  --ps-bad-fg: #991b1b;
+  --ps-bad: #b91c1c;
+  --ps-bad-line: #f5b5b5;
+  --ps-info-bg: #e0e7ff;
+  --ps-info-fg: #3730a3;
+  --ps-mute-bg: #e5e7eb;
+  --ps-mute-fg: #374151;
+
+  /* ---- Exam category tiles (landing) ---- */
+  --ps-pink-bg: #fce7f3;
+  --ps-pink-fg: #9d174d;
+
+  /* ---- Runtime brand (default: Pariksha Studio indigo) ---- */
+  --brand: var(--ps-indigo-800);
+  --brand-dark: var(--ps-indigo-900);
+  --brand-soft: var(--ps-indigo-50);
+  --brand-line: var(--ps-indigo-200);
+
+  /* ---- Gradients ---- */
+  --ps-gradient-hero: linear-gradient(150deg, var(--ps-indigo-950) 0%, var(--ps-indigo-800) 55%, var(--ps-teal-700) 150%);
+  --ps-gradient-auth: linear-gradient(150deg, var(--ps-indigo-950) 0%, var(--ps-indigo-800) 60%, var(--ps-teal-700) 140%);
+  --ps-gradient-admin: linear-gradient(120deg, var(--ps-indigo-900) 0%, var(--ps-indigo-700) 55%, var(--ps-teal-700) 130%);
+  --ps-gradient-portal: linear-gradient(120deg, var(--brand-dark), var(--brand));
+  --ps-gradient-cta: linear-gradient(120deg, var(--ps-indigo-800), var(--ps-teal-700));
+  --ps-gradient-logo: linear-gradient(135deg, var(--ps-indigo-600), var(--ps-teal-700));
+  --ps-gradient-logo-console: linear-gradient(135deg, var(--ps-indigo-500), var(--ps-teal-400));
+
+  /* ---- Radii ---- */
+  --ps-radius-sm: 8px;
+  --ps-radius-input: 10px;
+  --ps-radius-btn: 12px;
+  --ps-radius-tile: 14px;       /* icon tiles, landing buttons */
+  --ps-radius-panel: 16px;      /* FAQ items */
+  --ps-radius-card: 18px;
+  --ps-radius-card-lg: 20px;    /* landing and auth cards */
+  --ps-radius-hero: 24px;
+  --ps-radius-pill: 99px;
+
+  /* ---- Shadows ---- */
+  --ps-shadow-card-hover: 0 8px 24px rgb(55 48 163 / 0.1);
+  --ps-shadow-float: 0 24px 60px rgb(11 10 61 / 0.4);
+
+  /* ---- Sizes ---- */
+  --ps-target: 44px;            /* minimum touch target */
+  --ps-target-lg: 48px;         /* auth inputs and buttons */
+  --ps-target-xl: 52px;         /* landing buttons */
+  --ps-width-public: 1180px;
+  --ps-width-console: 1280px;
+  --ps-width-auth-card: 480px;
+  --ps-sidebar-width: 264px;
+
+  /* ---- Focus ---- */
+  --ps-focus-ring: 3px solid var(--ps-amber-500);
+  --ps-focus-offset: 2px;
+}

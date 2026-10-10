@@ -20,6 +20,11 @@ export async function GET() {
     const name = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.username || "";
     const avatarUrl = user?.imageUrl || null;
 
+    // The sign-up form stores the chosen exam in unsafeMetadata; use it to pre-fill.
+    const signupExam = user?.unsafeMetadata?.targetExam;
+    const targetExams =
+      typeof signupExam === "string" && signupExam && signupExam !== "Other" ? [signupExam.slice(0, 100)] : [];
+
     return Response.json({
       exists: false,
       student: {
@@ -27,7 +32,7 @@ export async function GET() {
         email,
         name,
         avatarUrl,
-        targetExams: [],
+        targetExams,
         targetYear: new Date().getFullYear().toString(),
         preferredLanguage: "en",
         dailyGoalQuestions: 20,

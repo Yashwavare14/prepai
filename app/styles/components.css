@@ -1,0 +1,512 @@
+/*
+ * Pariksha Studio component classes.
+ *
+ * Each class mirrors a pattern from the design export (named in the comment), built
+ * only from tokens. React components in components/ui apply these classes; pages
+ * compose components and use Tailwind utilities for layout.
+ */
+
+/* ======================================================================
+ * Base
+ * ====================================================================== */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--ps-bg-public);
+    color: var(--ps-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: var(--brand);
+  }
+  a:hover {
+    color: var(--brand-dark);
+  }
+
+  /* Design: 3px amber focus ring on every interactive element. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: var(--ps-focus-ring);
+    outline-offset: var(--ps-focus-offset);
+  }
+
+  /* Fix from the design review: native radios and checkboxes use the brand colour. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--brand);
+  }
+}
+
+/* ======================================================================
+ * Components
+ * ====================================================================== */
+@layer components {
+  /* ---------- Skip link (.skip) ---------- */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 8px;
+    z-index: 50;
+    padding: 10px 16px;
+    border-radius: var(--ps-radius-sm);
+    background: var(--ps-surface);
+    color: var(--ps-ink);
+    font-weight: 700;
+  }
+  .skip-link:focus {
+    left: 8px;
+  }
+
+  /* ---------- Buttons (.btn, .btn-*) ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: var(--ps-target);
+    padding: 0 20px;
+    border: 2px solid transparent;
+    border-radius: var(--ps-radius-btn);
+    font: 700 15px/1.2 var(--font-sans);
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--brand);
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--brand-dark);
+    color: #fff;
+  }
+
+  .btn-outline {
+    background: var(--ps-surface);
+    color: var(--brand-dark);
+    border-color: var(--brand-line);
+  }
+  .btn-outline:hover:not(:disabled) {
+    background: var(--brand-soft);
+    color: var(--brand-dark);
+  }
+
+  /* White button on a dark or gradient surface */
+  .btn-light {
+    background: var(--ps-surface);
+    color: var(--brand-dark);
+    border-color: var(--ps-surface);
+  }
+  .btn-light:hover:not(:disabled) {
+    background: var(--brand-soft);
+    color: var(--brand-dark);
+  }
+
+  /* Outlined button on a dark or gradient surface */
+  .btn-ghost {
+    background: transparent;
+    color: #fff;
+    border-color: var(--ps-indigo-350);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.12);
+    color: #fff;
+  }
+
+  /* Landing CTA */
+  .btn-amber {
+    background: var(--ps-amber-400);
+    color: var(--ps-ink-strong);
+  }
+  .btn-amber:hover:not(:disabled) {
+    background: var(--ps-amber-500);
+    color: var(--ps-ink-strong);
+  }
+
+  .btn-danger {
+    background: var(--ps-surface);
+    color: var(--ps-bad-fg);
+    border-color: var(--ps-bad-line);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: var(--ps-bad-bg);
+    color: var(--ps-bad-fg);
+  }
+
+  /* Underlined text button ("Forgot password?") */
+  .btn-link {
+    min-height: var(--ps-target);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--brand);
+    font: 700 14px var(--font-sans);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .btn-link:hover:not(:disabled) {
+    color: var(--brand-dark);
+  }
+
+  /* Sizes */
+  .btn-sm {
+    padding: 0 14px;
+    font-size: 14px;
+  }
+  .btn-lg {
+    min-height: var(--ps-target-lg);
+    padding: 0 22px;
+    font-size: 16px;
+  }
+  .btn-xl {
+    min-height: var(--ps-target-xl);
+    padding: 0 28px;
+    border-radius: var(--ps-radius-tile);
+    font-size: 16px;
+    font-weight: 800;
+  }
+  /* Landing header buttons: 44px tall, 15px text, 18px padding */
+  .btn-xl.btn-sm {
+    min-height: var(--ps-target);
+    padding: 0 18px;
+    font-size: 15px;
+  }
+  .btn-block {
+    width: 100%;
+  }
+
+  /* ---------- Cards (.card) ---------- */
+  .card {
+    background: var(--ps-surface);
+    border: 1px solid var(--ps-border);
+    border-radius: var(--ps-radius-card);
+    padding: 24px;
+    box-sizing: border-box;
+  }
+  /* Landing and auth cards are a little larger */
+  .card-lg {
+    border-radius: var(--ps-radius-card-lg);
+    padding: 28px;
+  }
+  .card-link {
+    color: var(--ps-ink);
+    text-decoration: none;
+    transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+  }
+  .card-link:hover {
+    color: var(--ps-ink);
+    border-color: var(--ps-border-hover);
+    box-shadow: var(--ps-shadow-card-hover);
+  }
+
+  /* ---------- Chips (.chip .ok/.warn/.bad/.info/.mute) ---------- */
+  .chip {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: var(--ps-radius-pill);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .chip-ok { background: var(--ps-ok-bg); color: var(--ps-ok-fg); }
+  .chip-warn { background: var(--ps-warn-bg); color: var(--ps-warn-fg); }
+  .chip-bad { background: var(--ps-bad-bg); color: var(--ps-bad-fg); }
+  .chip-info { background: var(--ps-info-bg); color: var(--ps-info-fg); }
+  .chip-mute { background: var(--ps-mute-bg); color: var(--ps-mute-fg); }
+  .chip-amber { background: var(--ps-amber-400); color: var(--ps-ink-strong); font-weight: 800; }
+
+  /* ---------- Form fields (.lbl .in .hint) ---------- */
+  .field {
+    display: flex;
+    flex-direction: column;
+  }
+  .field-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ps-ink);
+  }
+  .field-label-optional {
+    font-weight: 500;
+    color: var(--ps-muted);
+  }
+  .field-input {
+    width: 100%;
+    min-height: var(--ps-target);
+    padding: 0 14px;
+    border: 2px solid var(--ps-input-border);
+    border-radius: var(--ps-radius-input);
+    background: var(--ps-surface);
+    color: var(--ps-ink);
+    font: 500 15px var(--font-sans);
+    box-sizing: border-box;
+  }
+  textarea.field-input {
+    min-height: 96px;
+    padding: 12px 14px;
+    resize: vertical;
+  }
+  .field-input::placeholder {
+    color: #7a7ea3;
+  }
+  .field-input:disabled {
+    background: var(--ps-bg-app);
+    color: var(--ps-muted);
+    cursor: not-allowed;
+  }
+  .field-input[aria-invalid="true"] {
+    border-color: var(--ps-bad);
+  }
+  /* Auth pages use 48px fields with 16px text */
+  .field-input-lg {
+    min-height: var(--ps-target-lg);
+    font-size: 16px;
+  }
+  .field-hint {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--ps-muted);
+  }
+  .field-error {
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ps-bad-fg);
+  }
+
+  /* Checkbox row: 22px box, 44px row */
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: var(--ps-target);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .check-row-top {
+    align-items: flex-start;
+    gap: 12px;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+  .check-box {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+  }
+  .check-row-top .check-box {
+    margin-top: 2px;
+  }
+
+  /* ---------- Alerts ---------- */
+  .alert {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border-radius: var(--ps-radius-btn);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .alert-error { background: var(--ps-bad-bg); color: var(--ps-bad-fg); }
+  .alert-success { background: var(--ps-ok-bg); color: var(--ps-ok-fg); }
+  .alert-info { background: var(--ps-info-bg); color: var(--ps-info-fg); }
+  .alert-warn { background: var(--ps-warn-bg); color: var(--ps-warn-fg); }
+
+  /* ---------- Pill tabs (.tab[aria-pressed]) ---------- */
+  .pill-tab {
+    min-height: var(--ps-target);
+    padding: 0 16px;
+    border: 2px solid var(--brand-line);
+    border-radius: var(--ps-radius-pill);
+    background: var(--ps-surface);
+    color: var(--brand-dark);
+    font: 700 14px var(--font-sans);
+    cursor: pointer;
+  }
+  .pill-tab:hover {
+    background: var(--brand-soft);
+  }
+  .pill-tab[aria-pressed="true"],
+  .pill-tab[aria-current="page"] {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+  }
+
+  /* ---------- Navigation ---------- */
+  /* Public header links (.hl a) */
+  .nav-public-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--ps-target);
+    padding: 0 12px;
+    border-radius: var(--ps-radius-input);
+    color: var(--ps-ink-nav);
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .nav-public-link:hover {
+    background: var(--ps-indigo-50);
+    color: var(--ps-indigo-900);
+  }
+
+  /* Portal top nav (.navb[aria-current]) */
+  .nav-portal-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--ps-target);
+    padding: 0 16px;
+    border-radius: var(--ps-radius-input);
+    color: var(--ps-ink-soft);
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .nav-portal-link:hover {
+    background: var(--brand-soft);
+    color: var(--brand-dark);
+  }
+  .nav-portal-link[aria-current="page"] {
+    background: var(--brand-soft);
+    color: var(--brand-dark);
+    box-shadow: inset 0 -3px 0 var(--brand);
+  }
+
+  /* ---------- Meter (topic and section bars) ---------- */
+  .meter-track {
+    height: 8px;
+    border-radius: var(--ps-radius-pill);
+    background: var(--ps-track);
+    overflow: hidden;
+  }
+  .meter-fill {
+    height: 100%;
+    border-radius: var(--ps-radius-pill);
+    background: var(--meter-color, var(--brand));
+  }
+
+  /* ---------- Landing section typography (.sec .eyebrow .h2 .lead) ---------- */
+  .section {
+    max-width: var(--ps-width-public);
+    margin: 0 auto;
+    padding: 72px 24px;
+    box-sizing: border-box;
+  }
+  .eyebrow {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ps-teal-700);
+  }
+  .section-title {
+    margin: 0 0 12px;
+    font-size: 36px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-weight: 800;
+  }
+  .section-lead {
+    max-width: 680px;
+    margin: 0 0 36px;
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--ps-muted);
+  }
+  @media (max-width: 640px) {
+    .section {
+      padding: 48px 16px;
+    }
+    .section-title {
+      font-size: 28px;
+    }
+    .section-lead {
+      font-size: 16px;
+      margin-bottom: 28px;
+    }
+  }
+
+  /* ---------- Icon tile (48px rounded square) ---------- */
+  .icon-tile {
+    display: flex;
+    flex: 0 0 48px;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--ps-radius-tile);
+    font-weight: 800;
+  }
+
+  /* ---------- FAQ (details/summary) ---------- */
+  .faq-item {
+    background: var(--ps-surface);
+    border: 1px solid var(--ps-border);
+    border-radius: var(--ps-radius-panel);
+    padding: 0 24px;
+  }
+  .faq-item[open] {
+    border-color: var(--ps-border-hover);
+  }
+  .faq-item > summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 56px;
+    font-size: 17px;
+    font-weight: 800;
+    cursor: pointer;
+    list-style: none;
+  }
+  .faq-item > summary::-webkit-details-marker {
+    display: none;
+  }
+  .faq-item > summary::after {
+    content: "+";
+    margin-left: auto;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--brand);
+  }
+  .faq-item[open] > summary::after {
+    content: "−";
+  }
+  .faq-item > p {
+    margin: 0 0 20px;
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--ps-ink-soft);
+  }
+
+  /* ---------- Code input (6-digit verification) ---------- */
+  .code-input {
+    letter-spacing: 0.5em;
+    font-size: 22px;
+    font-weight: 800;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+}

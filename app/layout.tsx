@@ -1,23 +1,31 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import Providers from "./providers";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "PrepAI - Smart Exam Preparation",
-  description: "AI-powered exam preparation, question bank, and analytics",
+  title: {
+    default: "Free SSC CGL Mock Tests Online | Pariksha Studio",
+    template: "%s | Pariksha Studio",
+  },
+  description:
+    "Take free SSC CGL, Banking and Railways mock tests online. Real exam interface, instant results, percentile ranking and detailed solutions. Book a slot and start practising today.",
+  applicationName: "Pariksha Studio",
+  openGraph: {
+    title: "Free SSC CGL Mock Tests Online | Pariksha Studio",
+    description: "Real exam-style mock tests with instant results, percentile and solutions. Start free.",
+    type: "website",
+    siteName: "Pariksha Studio",
+  },
 };
 
 export default function RootLayout({
@@ -26,11 +34,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html
-        lang="en"
-        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      >
+    <ClerkProvider
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/post-auth"
+      signUpFallbackRedirectUrl="/post-auth"
+    >
+      <html lang="en" className={`${jakarta.variable} h-full`}>
         <body className="min-h-full flex flex-col">
           <Providers>{children}</Providers>
         </body>
@@ -38,4 +48,3 @@ export default function RootLayout({
     </ClerkProvider>
   );
 }
-

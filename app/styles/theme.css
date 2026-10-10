@@ -1,0 +1,158 @@
+/*
+ * Tailwind CSS v4 configuration for Pariksha Studio.
+ *
+ * Tailwind v4 is configured in CSS: every variable in @theme generates utilities
+ * (for example --color-brand -> bg-brand, text-brand, border-brand). `inline` makes the
+ * utilities reference the token variables directly, so runtime overrides of --brand
+ * (institute branding, admin console) flow through to every utility.
+ *
+ * Naming:
+ *   colours     semantic first (ink, muted, brand, ok, warn...), plus the design's
+ *               indigo / teal / amber scales replacing Tailwind's defaults
+ *   radius      rounded-input, rounded-btn, rounded-card, rounded-hero, ...
+ *   width       max-w-public, max-w-console, max-w-auth
+ *   spacing     h-target / min-h-target (44px), *-target-lg (48px), *-target-xl (52px)
+ *   type        text-display, text-h1, text-section, ...
+ */
+
+@theme inline {
+  /* ---------- Fonts ---------- */
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+
+  /* ---------- Semantic colours ---------- */
+  --color-ink: var(--ps-ink);
+  --color-ink-strong: var(--ps-ink-strong);
+  --color-ink-nav: var(--ps-ink-nav);
+  --color-ink-soft: var(--ps-ink-soft);
+  --color-muted: var(--ps-muted);
+
+  --color-app: var(--ps-bg-app);
+  --color-public: var(--ps-bg-public);
+  --color-surface: var(--ps-surface);
+  --color-surface-hover: var(--ps-surface-hover);
+
+  --color-line: var(--ps-border);
+  --color-divider: var(--ps-divider);
+  --color-track: var(--ps-track);
+  --color-input: var(--ps-input-border);
+  --color-line-hover: var(--ps-border-hover);
+  --color-option: var(--ps-option-border);
+  --color-dashed: var(--ps-dashed);
+
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-line: var(--brand-line);
+
+  --color-night: var(--ps-night);
+  --color-night-deep: var(--ps-night-deep);
+  --color-night-hover: var(--ps-night-hover);
+  --color-night-card: var(--ps-night-card);
+  --color-night-track: var(--ps-night-track);
+  --color-night-label: var(--ps-night-label);
+  --color-night-sub: var(--ps-night-sub);
+  --color-night-text: var(--ps-night-text);
+  --color-on-dark-soft: var(--ps-on-dark-soft);
+
+  --color-ok: var(--ps-ok);
+  --color-ok-bg: var(--ps-ok-bg);
+  --color-ok-fg: var(--ps-ok-fg);
+  --color-warn: var(--ps-warn);
+  --color-warn-bg: var(--ps-warn-bg);
+  --color-warn-fg: var(--ps-warn-fg);
+  --color-bad: var(--ps-bad);
+  --color-bad-bg: var(--ps-bad-bg);
+  --color-bad-fg: var(--ps-bad-fg);
+  --color-bad-line: var(--ps-bad-line);
+  --color-info-bg: var(--ps-info-bg);
+  --color-info-fg: var(--ps-info-fg);
+  --color-mute-bg: var(--ps-mute-bg);
+  --color-mute-fg: var(--ps-mute-fg);
+
+  --color-focus: var(--ps-amber-500);
+
+  /* ---------- Design scales (replace Tailwind defaults of the same name) ---------- */
+  --color-indigo-50: var(--ps-indigo-50);
+  --color-indigo-100: var(--ps-indigo-100);
+  --color-indigo-150: var(--ps-indigo-150);
+  --color-indigo-200: var(--ps-indigo-200);
+  --color-indigo-300: var(--ps-indigo-300);
+  --color-indigo-350: var(--ps-indigo-350);
+  --color-indigo-500: var(--ps-indigo-500);
+  --color-indigo-600: var(--ps-indigo-600);
+  --color-indigo-700: var(--ps-indigo-700);
+  --color-indigo-800: var(--ps-indigo-800);
+  --color-indigo-900: var(--ps-indigo-900);
+  --color-indigo-950: var(--ps-indigo-950);
+
+  --color-teal-50: var(--ps-teal-50);
+  --color-teal-100: var(--ps-teal-100);
+  --color-teal-200: var(--ps-teal-200);
+  --color-teal-300: var(--ps-teal-300);
+  --color-teal-400: var(--ps-teal-400);
+  --color-teal-700: var(--ps-teal-700);
+  --color-teal-800: var(--ps-teal-800);
+
+  --color-amber-400: var(--ps-amber-400);
+  --color-amber-500: var(--ps-amber-500);
+
+  --color-pink-bg: var(--ps-pink-bg);
+  --color-pink-fg: var(--ps-pink-fg);
+
+  /* ---------- Radius ---------- */
+  --radius-sm: var(--ps-radius-sm);
+  --radius-input: var(--ps-radius-input);
+  --radius-btn: var(--ps-radius-btn);
+  --radius-tile: var(--ps-radius-tile);
+  --radius-panel: var(--ps-radius-panel);
+  --radius-card: var(--ps-radius-card);
+  --radius-card-lg: var(--ps-radius-card-lg);
+  --radius-hero: var(--ps-radius-hero);
+  --radius-pill: var(--ps-radius-pill);
+
+  /* ---------- Shadows ---------- */
+  --shadow-card-hover: var(--ps-shadow-card-hover);
+  --shadow-float: var(--ps-shadow-float);
+
+  /* ---------- Widths (max-w-*) ---------- */
+  --container-public: var(--ps-width-public);
+  --container-console: var(--ps-width-console);
+  --container-auth: var(--ps-width-auth-card);
+  --container-prose: 680px;
+  --container-faq: 860px;
+
+  /* ---------- Spacing (h-*, w-*, min-h-*, ...) ---------- */
+  --spacing-target: var(--ps-target);
+  --spacing-target-lg: var(--ps-target-lg);
+  --spacing-target-xl: var(--ps-target-xl);
+  --spacing-sidebar: var(--ps-sidebar-width);
+
+  /* ---------- Type scale ---------- */
+  --text-display: 52px;          /* landing hero h1 */
+  --text-display--line-height: 1.08;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 800;
+
+  --text-h1-auth: 38px;          /* auth panel h1, CTA band h2 */
+  --text-h1-auth--line-height: 1.15;
+  --text-h1-auth--letter-spacing: -0.02em;
+  --text-h1-auth--font-weight: 800;
+
+  --text-section: 36px;          /* landing section h2 */
+  --text-section--line-height: 1.15;
+  --text-section--letter-spacing: -0.02em;
+  --text-section--font-weight: 800;
+
+  --text-h1: 32px;               /* page titles in portal and console */
+  --text-h1--line-height: 1.2;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h1--font-weight: 800;
+
+  --text-card-title: 26px;       /* auth card h2 */
+  --text-card-title--line-height: 1.2;
+  --text-card-title--letter-spacing: -0.01em;
+  --text-card-title--font-weight: 800;
+
+  --text-lead: 18px;
+  --text-lead--line-height: 1.6;
+}
